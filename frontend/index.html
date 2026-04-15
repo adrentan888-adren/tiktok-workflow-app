@@ -388,18 +388,6 @@
     </div>
     <div class="card-body" id="config-body">
 
-      <div class="section-label">🔑 API Keys</div>
-      <div class="form-grid">
-        <div class="field">
-          <label>Apify API Key</label>
-          <input type="password" id="apify_api_key" placeholder="apify_api_...">
-        </div>
-        <div class="field">
-          <label>Kie.ai API Key</label>
-          <input type="password" id="kie_api_key" placeholder="kie api key...">
-        </div>
-      </div>
-
       <div class="section-label">🔍 TikTok Search</div>
       <div class="form-grid">
         <div class="field">
@@ -544,6 +532,7 @@ let elapsedTimer = null;
 let startMs = 0;
 let currentRunId = null;
 let triggerTime = null;
+let loadedApiKeys = {}; // stored from config, never shown in UI
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 function saveSettings() {
@@ -614,8 +603,9 @@ async function loadConfig() {
 }
 
 function populateForm(cfg) {
-  if (cfg.apify_api_key)              document.getElementById('apify_api_key').value = cfg.apify_api_key;
-  if (cfg.kie_api_key)                document.getElementById('kie_api_key').value   = cfg.kie_api_key;
+  // Store API keys silently — never shown in UI
+  if (cfg.apify_api_key) loadedApiKeys.apify_api_key = cfg.apify_api_key;
+  if (cfg.kie_api_key)   loadedApiKeys.kie_api_key   = cfg.kie_api_key;
   if (cfg.keyword)                    document.getElementById('keyword').value        = cfg.keyword;
   if (cfg.max_videos)                 document.getElementById('max_videos').value     = cfg.max_videos;
   if (cfg.gemini_model)               setSelect('gemini_model', cfg.gemini_model);
@@ -645,8 +635,8 @@ function collectConfig() {
   return {
     "_comment": "TikTok → Gemini → Video Workflow Config.",
     "_section_api_keys": "=== API KEYS ===",
-    "apify_api_key": document.getElementById('apify_api_key').value,
-    "kie_api_key":   document.getElementById('kie_api_key').value,
+    "apify_api_key": loadedApiKeys.apify_api_key || '',
+    "kie_api_key":   loadedApiKeys.kie_api_key   || '',
     "_section_search": "=== TIKTOK SEARCH ===",
     "keyword":    document.getElementById('keyword').value,
     "max_videos": parseInt(document.getElementById('max_videos').value) || 3,
@@ -1032,8 +1022,13 @@ function escHtml(str) {
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadSettings();
 
-// Auto-load config if settings are available
+// Pre-fill defaults if fields are empty
 window.addEventListener('load', () => {
+  if (!document.getElementById('gh-owner').value)  document.getElementById('gh-owner').value  = 'adrentan888-adren';
+  if (!document.getElementById('gh-repo').value)   document.getElementById('gh-repo').value   = 'tiktok-workflow-app';
+  if (!document.getElementById('gh-branch').value) document.getElementById('gh-branch').value = 'main';
+  saveSettings();
+
   const gh = getGH();
   if (gh.owner && gh.repo && gh.pat) {
     loadConfig();
