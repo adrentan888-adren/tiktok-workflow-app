@@ -1,0 +1,99 @@
+name: TikTok → Gemini → Video
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Create output directory
+        run: mkdir -p output
+
+      - name: Run workflow
+        env:
+          OUTPUT_FOLDER: ${{ github.workspace }}/output
+        run: node workflow/run-workflow.js
+
+      - name: Upload video artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-video-run-${{ github.run_number }}
+          path: output/*.mp4
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workflow-log-run-${{ github.run_number }}
+          path: output/*.log
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Save result to repo
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f "output/result.json" ]; then
+            echo '{"success":false,"error":"result.json not generated","timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > output/result.json
+          fi
+
+          CONTENT=$(base64 -w 0 output/result.json)
+          REPO="${{ github.repository }}"
+          FILE="workflow/latest-result.json"
+
+          # Get current SHA if file already exists
+          SHA=$(curl -sf -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/contents/$FILE" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || true)
+
+          if [ -z "$SHA" ]; then
+            BODY="{\"message\":\"chore: update latest workflow result [skip ci]\",\"content\":\"$CONTENT\"}"
+          else
+            BODY="{\"message\":\"chore: update latest workflow result [skip ci]\",\"content\":\"$CONTENT\",\"sha\":\"$SHA\"}"
+          fi
+
+          curl -sf -X PUT \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/$REPO/contents/$FILE" \
+            -d "$BODY"
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f "output/result.json" ]; then
+            SUCCESS=$(python3 -c "import json; d=json.load(open('output/result.json')); print(d.get('success','false'))")
+            VIDEO_URL=$(python3 -c "import json; d=json.load(open('output/result.json')); print(d.get('videoUrl','N/A'))" 2>/dev/null || echo "N/A")
+            KEYWORD=$(python3 -c "import json; d=json.load(open('output/result.json')); print(d.get('keyword','N/A'))" 2>/dev/null || echo "N/A")
+            ELAPSED=$(python3 -c "import json; d=json.load(open('output/result.json')); print(d.get('elapsedMinutes','?'))" 2>/dev/null || echo "?")
+            if [ "$SUCCESS" = "True" ]; then
+              echo "## ✅ Workflow Complete" >> $GITHUB_STEP_SUMMARY
+              echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+              echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+              echo "| Keyword | $KEYWORD |" >> $GITHUB_STEP_SUMMARY
+              echo "| Duration | ${ELAPSED} min |" >> $GITHUB_STEP_SUMMARY
+              echo "| Video URL | [$VIDEO_URL]($VIDEO_URL) |" >> $GITHUB_STEP_SUMMARY
+            else
+              ERROR=$(python3 -c "import json; d=json.load(open('output/result.json')); print(d.get('error','Unknown error'))" 2>/dev/null || echo "Unknown")
+              echo "## ❌ Workflow Failed" >> $GITHUB_STEP_SUMMARY
+              echo "**Error:** $ERROR" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
