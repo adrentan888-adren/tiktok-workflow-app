@@ -1,5 +1,13 @@
 {
-  "success": false,
-  "error": "Cannot extract Gemini content: {\"code\":500,\"msg\":\"The server is currently being maintained, please try again later~\"}",
-  "timestamp": "2026-04-15T06:58:18.576Z"
+  "success": true,
+  "videoUrl": "https://tempfile.aiquickdraw.com/wan-aliyun/1776245929577-zotfitjivq.mp4",
+  "taskId": "8b3dea2e60a68e0edc63a39b9d93ab2d",
+  "keyword": "918kiss",
+  "model": "wan/2-6-text-to-video",
+  "resolution": "720p",
+  "duration": 15,
+  "timestamp": "2026-04-15T09:39:02.542Z",
+  "elapsedMinutes": 2.6,
+  "tiktokAuthor": "izzattidur",
+  "tiktokVideoId": "7619349109543013639"
 }
