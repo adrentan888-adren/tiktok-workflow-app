@@ -159,14 +159,30 @@ async function analyzeWithGemini(videoBuffer, downloadUrl) {
         ]}]};
     }
 
-    const res = await fetch(`https://api.kie.ai/${model}/v1/chat/completions`, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + config.kie_api_key, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    log(`  HTTP status : ${res.status}`);
-    return data;
+    const MAX_RETRIES = 3;
+    const RETRY_WAIT  = 60; // seconds between retries
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 1) {
+            log(`  Retry #${attempt - 1} — waiting ${RETRY_WAIT}s before retrying...`);
+            await sleep(RETRY_WAIT * 1000);
+        }
+        const res = await fetch(`https://api.kie.ai/${model}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + config.kie_api_key, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        log(`  HTTP status : ${res.status} (attempt ${attempt}/${MAX_RETRIES})`);
+
+        // Check for maintenance/server error
+        if (data.code === 500 || (data.msg && data.msg.includes('maintained'))) {
+            log(`  ⚠️  Kie.ai maintenance: ${data.msg || 'server error'}`);
+            if (attempt === MAX_RETRIES) throw new Error('Kie.ai Gemini is under maintenance after ' + MAX_RETRIES + ' attempts. Try again later.');
+            continue;
+        }
+        return data;
+    }
 }
 
 function parseGeminiResponse(data) {
