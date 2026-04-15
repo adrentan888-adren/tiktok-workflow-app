@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 
@@ -137,59 +138,111 @@ async function downloadVideo(url) {
     return buf;
 }
 
-async function analyzeWithGemini(videoBuffer, downloadUrl) {
-    logSection(`STEP 4 — Kie.ai: Gemini Video Analysis`);
-    const model = config.gemini_model || 'gemini-2.5-pro';
-    const mode  = (videoBuffer && videoBuffer.length > 500) ? 'inline base64' : 'CDN URL';
+// Extract frames from video buffer using FFmpeg
+function extractFrames(videoBuffer) {
+    const tmpVideo  = path.join(outputFolder, '_tmp_video.mp4');
+    const frameDir  = path.join(outputFolder, '_frames');
+    if (!fs.existsSync(frameDir)) fs.mkdirSync(frameDir, { recursive: true });
+
+    fs.writeFileSync(tmpVideo, videoBuffer);
+
+    // Extract 6 frames evenly spread, max 640px wide
+    execSync(`ffmpeg -y -i "${tmpVideo}" -vf "fps=1/3,scale=640:-1" -frames:v 6 "${frameDir}/frame_%02d.jpg" 2>/dev/null || ffmpeg -y -i "${tmpVideo}" -vf "fps=1/3,scale=640:-1" -frames:v 6 "${frameDir}/frame_%02d.jpg"`);
+
+    const frames = fs.readdirSync(frameDir)
+        .filter(f => f.endsWith('.jpg'))
+        .sort()
+        .map(f => fs.readFileSync(path.join(frameDir, f)).toString('base64'));
+
+    // Cleanup temp files
+    try { fs.unlinkSync(tmpVideo); } catch(e) {}
+    try { fs.readdirSync(frameDir).forEach(f => fs.unlinkSync(path.join(frameDir, f))); fs.rmdirSync(frameDir); } catch(e) {}
+
+    log(`  Frames extracted : ${frames.length}`);
+    return frames;
+}
+
+async function analyzeVideo(videoBuffer, downloadUrl) {
+    const model = config.gemini_model || 'claude-sonnet-4-6';
+    const isClaude = model.startsWith('claude');
+
+    logSection(`STEP 4 — Kie.ai: AI Video Analysis`);
     log(`  Model : ${model}`);
-    log(`  Mode  : ${mode}`);
 
     const promptText = config.gemini_prompt || 'Describe this video in detail as a JSON array of timestamped segments with visual_action and edit_instruction keys.';
 
-    let body;
-    if (videoBuffer && videoBuffer.length > 500) {
-        body = { model, stream: false, messages: [{ role: 'user', content: [
-            { type: 'image_url', image_url: { url: 'data:video/mp4;base64,' + videoBuffer.toString('base64') } },
-            { type: 'text', text: promptText }
-        ]}]};
-    } else {
-        body = { model, stream: false, messages: [{ role: 'user', content: [
-            { type: 'image_url', image_url: { url: downloadUrl } },
-            { type: 'text', text: promptText }
-        ]}]};
-    }
-
     const MAX_RETRIES = 3;
-    const RETRY_WAIT  = 60; // seconds between retries
+    const RETRY_WAIT  = 60;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         if (attempt > 1) {
-            log(`  Retry #${attempt - 1} — waiting ${RETRY_WAIT}s before retrying...`);
+            log(`  Retry #${attempt - 1} — waiting ${RETRY_WAIT}s...`);
             await sleep(RETRY_WAIT * 1000);
         }
-        const res = await fetch(`https://api.kie.ai/${model}/v1/chat/completions`, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + config.kie_api_key, 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        const data = await res.json();
+
+        let res, data;
+
+        if (isClaude) {
+            // ── Claude: extract frames → send as images ───────────────────────
+            log(`  Mode  : frame extraction (${attempt === 1 ? 'extracting...' : 'reusing frames'})`);
+            const frames = extractFrames(videoBuffer);
+
+            const imageBlocks = frames.map(b64 => ({
+                type: 'image',
+                source: { type: 'base64', media_type: 'image/jpeg', data: b64 }
+            }));
+
+            const body = {
+                model,
+                max_tokens: 2000,
+                messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: promptText }] }]
+            };
+
+            res  = await fetch('https://api.kie.ai/claude/v1/messages', {
+                method : 'POST',
+                headers: { 'Authorization': 'Bearer ' + config.kie_api_key, 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
+                body   : JSON.stringify(body)
+            });
+            data = await res.json();
+        } else {
+            // ── Gemini: send full video as base64 ─────────────────────────────
+            log(`  Mode  : ${(videoBuffer && videoBuffer.length > 500) ? 'inline base64 video' : 'CDN URL'}`);
+            const content = (videoBuffer && videoBuffer.length > 500)
+                ? [{ type: 'image_url', image_url: { url: 'data:video/mp4;base64,' + videoBuffer.toString('base64') } }, { type: 'text', text: promptText }]
+                : [{ type: 'image_url', image_url: { url: downloadUrl } }, { type: 'text', text: promptText }];
+
+            const body = { model, stream: false, messages: [{ role: 'user', content }] };
+
+            res  = await fetch(`https://api.kie.ai/${model}/v1/chat/completions`, {
+                method : 'POST',
+                headers: { 'Authorization': 'Bearer ' + config.kie_api_key, 'Content-Type': 'application/json' },
+                body   : JSON.stringify(body)
+            });
+            data = await res.json();
+        }
+
         log(`  HTTP status : ${res.status} (attempt ${attempt}/${MAX_RETRIES})`);
 
-        // Check for maintenance/server error
         if (data.code === 500 || (data.msg && data.msg.includes('maintained'))) {
             log(`  ⚠️  Kie.ai maintenance: ${data.msg || 'server error'}`);
-            if (attempt === MAX_RETRIES) throw new Error('Kie.ai Gemini is under maintenance after ' + MAX_RETRIES + ' attempts. Try again later.');
+            if (attempt === MAX_RETRIES) throw new Error('Kie.ai is under maintenance after ' + MAX_RETRIES + ' attempts. Try again later.');
             continue;
         }
-        return data;
+        return { data, isClaude };
     }
 }
 
-function parseGeminiResponse(data) {
+function parseAnalysisResponse(data, isClaude) {
     let content = '';
-    try { content = data.choices[0].message.content; } catch(e) {}
-    try { if (!content) content = data.data.choices[0].message.content; } catch(e) {}
-    if (!content) throw new Error('Cannot extract Gemini content: ' + JSON.stringify(data).substring(0, 300));
+    if (isClaude) {
+        // Claude: { content: [{ type: 'text', text: '...' }] }
+        try { content = data.content[0].text; } catch(e) {}
+    } else {
+        // Gemini: { choices: [{ message: { content: '...' } }] }
+        try { content = data.choices[0].message.content; } catch(e) {}
+        try { if (!content) content = data.data.choices[0].message.content; } catch(e) {}
+    }
+    if (!content) throw new Error('Cannot extract AI content: ' + JSON.stringify(data).substring(0, 300));
 
     const cleaned = content.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
 
@@ -199,10 +252,11 @@ function parseGeminiResponse(data) {
         if (m) try { parsed = JSON.parse(m[0]); } catch(e2) {}
     }
 
+    const label = isClaude ? 'Claude' : 'Gemini';
     let prompt = '';
 
     if (Array.isArray(parsed)) {
-        logOutput('Gemini — Timestamped Segments', parsed.map(s => ({
+        logOutput(`${label} — Timestamped Segments`, parsed.map(s => ({
             timestamp       : s.timestamp,
             visual_action   : s.visual_action,
             edit_instruction: s.edit_instruction
@@ -212,13 +266,13 @@ function parseGeminiResponse(data) {
         ).join(' | ');
     } else if (parsed && typeof parsed === 'object') {
         prompt = parsed.prompt || parsed.generation_prompt || parsed.visual_prompt || cleaned.substring(0, 500);
-        logOutput('Gemini — Generated Prompt', { prompt, style: parsed.style || '', motion: parsed.motion || '', prompt_chars: prompt.length });
+        logOutput(`${label} — Generated Prompt`, { prompt, style: parsed.style || '', motion: parsed.motion || '', prompt_chars: prompt.length });
     } else {
         prompt = cleaned.substring(0, 500);
-        logOutput('Gemini — Raw Prompt (fallback)', { prompt });
+        logOutput(`${label} — Raw Prompt (fallback)`, { prompt });
     }
 
-    if (!prompt || prompt.length < 10) throw new Error('Gemini returned an empty or invalid prompt');
+    if (!prompt || prompt.length < 10) throw new Error(`${label} returned an empty or invalid prompt`);
     if (prompt.length > 10000) prompt = prompt.substring(0, 10000);
     return prompt;
 }
@@ -350,8 +404,8 @@ async function main() {
     try { videoBuffer = await downloadVideo(downloadUrl); }
     catch(e) { log(`  WARNING: Video download failed (${e.message}) — using URL fallback for Gemini`); }
 
-    const geminiResponse = await analyzeWithGemini(videoBuffer, downloadUrl);
-    const prompt         = parseGeminiResponse(geminiResponse);
+    const { data: analysisData, isClaude } = await analyzeVideo(videoBuffer, downloadUrl);
+    const prompt = parseAnalysisResponse(analysisData, isClaude);
     const taskId         = await createVideoTask(prompt);
     const videoUrl       = await pollUntilDone(taskId);
     const { filepath, kieUrl } = await saveVideo(videoUrl, taskId);
