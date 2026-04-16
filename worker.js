@@ -245,10 +245,7 @@ const HTML = `<!DOCTYPE html>
           <label>Poll Interval (seconds)</label>
           <input type="number" id="poll_interval_seconds" min="10" max="120" placeholder="30">
         </div>
-        <div class="field full">
-          <label>Analysis Prompt</label>
-          <textarea id="gemini_prompt" rows="10" placeholder="Enter your analysis prompt..."></textarea>
-        </div>
+        <textarea id="gemini_prompt" style="display:none"></textarea>
       </div>
 
       <!-- Step 3: Video Generation -->
