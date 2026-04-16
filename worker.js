@@ -910,33 +910,23 @@ export default {
       const cfg = JSON.parse(atob(cfgData.content.replace(/\n/g, '')));
       const apifyKey = cfg.apify_api_key;
 
-      // Request 4x more than needed — Apify often returns fewer than asked
-      const apifyAsk = Math.max(maxVideos * 4, 20);
-      const apifyRes = await fetch(
-        `https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?token=${apifyKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'SEARCH', searchQueries: [keyword], maxResultsPerQuery: apifyAsk, maxItems: apifyAsk, resultsType: 'videos' })
-        }
+      // Use tikwm search — free, returns 10+ results instantly
+      const tikwmRes = await fetch(
+        `https://www.tikwm.com/api/feed/search?keywords=${encodeURIComponent(keyword)}&count=${maxVideos}&cursor=0&hd=1`
       );
-      const items = await apifyRes.json();
-      const videos = (Array.isArray(items) ? items : []).slice(0, maxVideos).map(d => {
-        const vm    = d.videoMeta || {};
-        const stats = d.stats || {};
-        const auth  = d.authorMeta || d.author || {};
-        return {
-          videoId    : d.id || d.videoId || '',
-          description: d.desc || d.text || d.description || '',
-          videoUrl   : vm.downloadAddr || vm.playAddr || d.downloadUrl || d.videoUrl || d.webVideoUrl || '',
-          webUrl     : d.webVideoUrl || '',
-          authorName : auth.name || auth.uniqueId || '',
-          thumbnail  : vm.coverUrl || vm.originCoverUrl || (d.covers && d.covers[0]) || '',
-          playCount  : stats.playCount  || d.playCount  || 0,
-          likeCount  : stats.diggCount  || d.diggCount  || 0,
-          duration   : vm.duration || d.duration || 0
-        };
-      });
+      const tikwmData = await tikwmRes.json();
+      const rawVideos = (tikwmData.data && tikwmData.data.videos) || [];
+      const videos = rawVideos.slice(0, maxVideos).map(v => ({
+        videoId    : v.id || '',
+        description: v.title || v.desc || '',
+        videoUrl   : v.play || v.hdplay || '',
+        webUrl     : v.id ? `https://www.tiktok.com/@${(v.author&&v.author.unique_id)||'unknown'}/video/${v.id}` : '',
+        authorName : (v.author && v.author.unique_id) || '',
+        thumbnail  : v.cover || v.origin_cover || '',
+        playCount  : v.play_count  || 0,
+        likeCount  : v.digg_count  || 0,
+        duration   : v.duration    || 0
+      }));
       return json({ videos, keyword });
     }
 
