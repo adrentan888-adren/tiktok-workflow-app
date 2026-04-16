@@ -390,12 +390,21 @@ async function main() {
     log(`  Keyword  : "${config.keyword}"`);
     log(`  Config   : max_videos=${config.max_videos}, model=${config.seedance.model}, duration=${config.seedance.duration}s`);
 
-    const items  = await searchTikTok(config.keyword);
-    const videos = filterVideos(items);
-
-    if (videos.length === 0) {
-        log('ERROR: No valid videos found after filtering. Exiting.');
-        process.exit(1);
+    let videos;
+    if (config.selected_video && config.selected_video.videoId) {
+        logSection('STEP 1 — Using pre-selected video from frontend');
+        log(`  Video ID : ${config.selected_video.videoId}`);
+        log(`  Author   : @${config.selected_video.authorName}`);
+        log(`  Desc     : ${(config.selected_video.description || '').substring(0, 80)}`);
+        logOutput('Pre-selected Video', config.selected_video);
+        videos = [config.selected_video];
+    } else {
+        const items = await searchTikTok(config.keyword);
+        videos = filterVideos(items);
+        if (videos.length === 0) {
+            log('ERROR: No valid videos found after filtering. Exiting.');
+            process.exit(1);
+        }
     }
 
     const downloadUrl = await getDownloadUrl(videos[0]);

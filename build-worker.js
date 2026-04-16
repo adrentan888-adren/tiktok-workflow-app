@@ -101,6 +101,50 @@ export default {
       return json(data, res.status);
     }
 
+    // POST /api/search — search TikTok via Apify (key fetched from config.json)
+    if (url.pathname === '/api/search' && request.method === 'POST') {
+      const body = await request.json();
+      const keyword = (body.keyword || '').trim();
+      const maxVideos = parseInt(body.max_videos) || 5;
+      if (!keyword) return json({ error: 'keyword required' }, 400);
+
+      // Fetch Apify key from config.json on GitHub
+      const cfgRes = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/config.json\`,
+        { headers: ghHeaders(pat) }
+      );
+      const cfgData = await cfgRes.json();
+      const cfg = JSON.parse(atob(cfgData.content.replace(/\\n/g, '')));
+      const apifyKey = cfg.apify_api_key;
+
+      const apifyRes = await fetch(
+        \`https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?token=\${apifyKey}\`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'SEARCH', searchQueries: [keyword], maxResultsPerQuery: maxVideos, resultsType: 'videos' })
+        }
+      );
+      const items = await apifyRes.json();
+      const videos = (Array.isArray(items) ? items : []).slice(0, maxVideos).map(d => {
+        const vm    = d.videoMeta || {};
+        const stats = d.stats || {};
+        const auth  = d.authorMeta || d.author || {};
+        return {
+          videoId    : d.id || d.videoId || '',
+          description: d.desc || d.text || d.description || '',
+          videoUrl   : vm.downloadAddr || vm.playAddr || d.downloadUrl || d.videoUrl || d.webVideoUrl || '',
+          webUrl     : d.webVideoUrl || '',
+          authorName : auth.name || auth.uniqueId || '',
+          thumbnail  : vm.coverUrl || vm.originCoverUrl || (d.covers && d.covers[0]) || '',
+          playCount  : stats.playCount  || d.playCount  || 0,
+          likeCount  : stats.diggCount  || d.diggCount  || 0,
+          duration   : vm.duration || d.duration || 0
+        };
+      });
+      return json({ videos, keyword });
+    }
+
     return new Response('Not found', { status: 404 });
   }
 };
