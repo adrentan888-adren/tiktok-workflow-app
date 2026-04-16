@@ -212,6 +212,7 @@ const HTML = `<!DOCTYPE html>
         <div class="field">
           <label>Max Results</label>
           <select id="max_videos">
+            <option value="1">1 video</option>
             <option value="5" selected>5 videos</option>
             <option value="8">8 videos</option>
             <option value="10">10 videos</option>
@@ -416,7 +417,11 @@ function setSelect(id, value) {
   const el = document.getElementById(id);
   const opt = Array.from(el.options).find(o => o.value === value);
   if (opt) { el.value = value; }
-  else { el.add(new Option(value, value)); el.value = value; }
+  else {
+    const label = id === 'max_videos' ? value + (value === '1' ? ' video' : ' videos') : value;
+    el.add(new Option(label, value));
+    el.value = value;
+  }
 }
 
 function collectConfig(includeSelectedVideo = false) {
@@ -905,12 +910,14 @@ export default {
       const cfg = JSON.parse(atob(cfgData.content.replace(/\n/g, '')));
       const apifyKey = cfg.apify_api_key;
 
+      // Request 4x more than needed — Apify often returns fewer than asked
+      const apifyAsk = Math.max(maxVideos * 4, 20);
       const apifyRes = await fetch(
         `https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?token=${apifyKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'SEARCH', searchQueries: [keyword], maxResultsPerQuery: maxVideos, resultsType: 'videos' })
+          body: JSON.stringify({ type: 'SEARCH', searchQueries: [keyword], maxResultsPerQuery: apifyAsk, maxItems: apifyAsk, resultsType: 'videos' })
         }
       );
       const items = await apifyRes.json();

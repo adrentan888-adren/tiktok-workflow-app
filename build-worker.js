@@ -117,12 +117,14 @@ export default {
       const cfg = JSON.parse(atob(cfgData.content.replace(/\\n/g, '')));
       const apifyKey = cfg.apify_api_key;
 
+      // Request 4x more than needed — Apify often returns fewer than asked
+      const apifyAsk = Math.max(maxVideos * 4, 20);
       const apifyRes = await fetch(
         \`https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?token=\${apifyKey}\`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'SEARCH', searchQueries: [keyword], maxResultsPerQuery: maxVideos, resultsType: 'videos' })
+          body: JSON.stringify({ type: 'SEARCH', searchQueries: [keyword], maxResultsPerQuery: apifyAsk, maxItems: apifyAsk, resultsType: 'videos' })
         }
       );
       const items = await apifyRes.json();
