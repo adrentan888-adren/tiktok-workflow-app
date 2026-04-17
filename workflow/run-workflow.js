@@ -163,13 +163,13 @@ function extractFrames(videoBuffer) {
 }
 
 async function analyzeVideo(videoBuffer, downloadUrl) {
-    const model = config.gemini_model || 'claude-sonnet-4-6';
+    const model = config.analysis_model || 'claude-sonnet-4-6';
     const isClaude = model.startsWith('claude');
 
     logSection(`STEP 4 — Kie.ai: AI Video Analysis`);
     log(`  Model : ${model}`);
 
-    const promptText = config.gemini_prompt || 'Describe this video in detail as a JSON array of timestamped segments with visual_action and edit_instruction keys.';
+    const promptText = config.analysis_prompt || 'Describe this video in detail as a JSON array of timestamped segments with visual_action and edit_instruction keys.';
 
     const MAX_RETRIES = 3;
     const RETRY_WAIT  = 60;

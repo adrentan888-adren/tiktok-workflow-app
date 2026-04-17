@@ -6,9 +6,9 @@
   "_section_search": "=== TIKTOK SEARCH ===",
   "keyword": "cat mukbang",
   "max_videos": 1,
-  "_section_gemini": "=== GEMINI ANALYSIS ===",
-  "gemini_model": "claude-sonnet-4-6",
-  "gemini_prompt": "Analyze this video and return a JSON array of 4 timestamped segments. Each segment must have: timestamp (e.g. \"00:00 - 00:04\"), visual_action (describe exactly what is visible), and edit_instruction (how to recreate this moment in an AI-generated video). Focus on subject, motion, lighting, and mood. Return only valid JSON, no extra text.",
+  "_section_analysis": "=== AI ANALYSIS ===",
+  "analysis_model": "claude-sonnet-4-6",
+  "analysis_prompt": "Analyze this video and return a JSON array of 4 timestamped segments. Each segment must have: timestamp (e.g. \"00:00 - 00:04\"), visual_action (describe exactly what is visible), and edit_instruction (how to recreate this moment in an AI-generated video). Focus on subject, motion, lighting, and mood. Return only valid JSON, no extra text.",
   "_section_seedance": "=== VIDEO GENERATION ===",
   "seedance": {
     "model": "grok-imagine/text-to-video",

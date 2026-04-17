@@ -243,7 +243,7 @@ const HTML = `<!DOCTYPE html>
       <div class="form-grid">
         <div class="field">
           <label>Analysis Model</label>
-          <select id="gemini_model">
+          <select id="analysis_model">
             <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (recommended)</option>
             <option value="gemini-3.1-pro">gemini-3.1-pro</option>
             <option value="gemini-2.5-pro">gemini-2.5-pro</option>
@@ -254,7 +254,7 @@ const HTML = `<!DOCTYPE html>
           <label>Poll Interval (seconds)</label>
           <input type="number" id="poll_interval_seconds" min="10" max="120" placeholder="30">
         </div>
-        <textarea id="gemini_prompt" style="display:none"></textarea>
+        <textarea id="analysis_prompt" style="display:none"></textarea>
       </div>
 
       <!-- Product Photo -->
@@ -431,8 +431,8 @@ function populateForm(cfg) {
   if (cfg.kie_api_key)   loadedApiKeys.kie_api_key   = cfg.kie_api_key;
   if (cfg.keyword)               document.getElementById('keyword').value                = cfg.keyword;
   if (cfg.max_videos)            setSelect('max_videos', String(cfg.max_videos));
-  if (cfg.gemini_model)          setSelect('gemini_model', cfg.gemini_model);
-  if (cfg.gemini_prompt)         document.getElementById('gemini_prompt').value          = cfg.gemini_prompt;
+  if (cfg.analysis_model)          setSelect('analysis_model', cfg.analysis_model);
+  if (cfg.analysis_prompt)         document.getElementById('analysis_prompt').value          = cfg.analysis_prompt;
   if (cfg.poll_interval_seconds) document.getElementById('poll_interval_seconds').value  = cfg.poll_interval_seconds;
   if (cfg.seedance) {
     if (cfg.seedance.model)        setSelect('seedance_model', cfg.seedance.model);
@@ -463,9 +463,9 @@ function collectConfig(includeSelectedVideo = false) {
     "_section_search": "=== TIKTOK SEARCH ===",
     "keyword":    document.getElementById('keyword').value,
     "max_videos": parseInt(document.getElementById('max_videos').value) || 5,
-    "_section_gemini": "=== GEMINI ANALYSIS ===",
-    "gemini_model":  document.getElementById('gemini_model').value,
-    "gemini_prompt": document.getElementById('gemini_prompt').value,
+    "_section_analysis": "=== AI ANALYSIS ===",
+    "analysis_model":  document.getElementById('analysis_model').value,
+    "analysis_prompt": document.getElementById('analysis_prompt').value,
     "_section_seedance": "=== VIDEO GENERATION ===",
     "seedance": {
       "model":        document.getElementById('seedance_model').value,
