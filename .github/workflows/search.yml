@@ -1,0 +1,39 @@
+name: TikTok Search
+
+on:
+  workflow_dispatch:
+    inputs:
+      keyword:
+        description: 'Search keyword'
+        required: true
+        type: string
+      max_videos:
+        description: 'Max results'
+        required: false
+        default: '5'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Search TikTok
+        run: node workflow/search.js
+        env:
+          KEYWORD: ${{ inputs.keyword }}
+          MAX_VIDEOS: ${{ inputs.max_videos }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

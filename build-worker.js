@@ -142,40 +142,33 @@ export default {
       return json({ deleted: res.ok, status: res.status }, res.status);
     }
 
-    // POST /api/search — search TikTok via Apify (key fetched from config.json)
+    // POST /api/search — trigger GitHub Actions search workflow (tikwm blocked from CF IPs)
     if (url.pathname === '/api/search' && request.method === 'POST') {
       const body = await request.json();
       const keyword = (body.keyword || '').trim();
       const maxVideos = parseInt(body.max_videos) || 5;
       if (!keyword) return json({ error: 'keyword required' }, 400);
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/actions/workflows/search.yml/dispatches\`,
+        { method: 'POST', headers: ghHeaders(pat), body: JSON.stringify({ ref: BRANCH, inputs: { keyword, max_videos: String(maxVideos) } }) }
+      );
+      return json({ triggered: res.status === 204, status: res.status, keyword });
+    }
 
-      // Fetch Apify key from config.json on GitHub
-      const cfgRes = await fetch(
-        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/config.json\`,
+    // GET /api/search-results?keyword=X — read search-results.json from GitHub
+    if (url.pathname === '/api/search-results' && request.method === 'GET') {
+      const keyword = url.searchParams.get('keyword') || '';
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/search-results.json?t=\${Date.now()}\`,
         { headers: ghHeaders(pat) }
       );
-      const cfgData = await cfgRes.json();
-      const cfg = JSON.parse(atob(cfgData.content.replace(/\\n/g, '')));
-      const apifyKey = cfg.apify_api_key;
-
-      // Use tikwm search — free, returns 10+ results instantly
-      const tikwmRes = await fetch(
-        \`https://www.tikwm.com/api/feed/search?keywords=\${encodeURIComponent(keyword)}&count=\${maxVideos}&cursor=0&hd=1\`
-      );
-      const tikwmData = await tikwmRes.json();
-      const rawVideos = (tikwmData.data && tikwmData.data.videos) || [];
-      const videos = rawVideos.slice(0, maxVideos).map(v => ({
-        videoId    : v.id || '',
-        description: v.title || v.desc || '',
-        videoUrl   : v.play || v.hdplay || '',
-        webUrl     : v.id ? \`https://www.tiktok.com/@\${(v.author&&v.author.unique_id)||'unknown'}/video/\${v.id}\` : '',
-        authorName : (v.author && v.author.unique_id) || '',
-        thumbnail  : v.cover || v.origin_cover || '',
-        playCount  : v.play_count  || 0,
-        likeCount  : v.digg_count  || 0,
-        duration   : v.duration    || 0
-      }));
-      return json({ videos, keyword });
+      if (!res.ok) return json({ ready: false });
+      const data = await res.json();
+      const results = JSON.parse(atob(data.content.replace(/\\n/g, '')));
+      if (results.keyword.toLowerCase() !== keyword.toLowerCase()) return json({ ready: false, currentKeyword: results.keyword });
+      const age = Date.now() - new Date(results.timestamp).getTime();
+      if (age > 10 * 60 * 1000) return json({ ready: false, reason: 'stale' });
+      return json({ ready: true, videos: results.videos, keyword: results.keyword });
     }
 
     return new Response('Not found', { status: 404 });

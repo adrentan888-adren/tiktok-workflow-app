@@ -518,7 +518,7 @@ async function searchVideos() {
   const wrap = document.getElementById('video-results-wrap');
   const list = document.getElementById('video-list');
   wrap.style.display = 'block';
-  list.innerHTML = '<div class="search-spinner"><div class="spinner-sm"></div> Searching TikTok for "' + escHtml(keyword) + '"...</div>';
+  list.innerHTML = '<div class="search-spinner"><div class="spinner-sm"></div> Searching TikTok for "' + escHtml(keyword) + '" (~30 seconds)...</div>';
 
   // Reset selection
   selectedVideo = null;
@@ -526,51 +526,38 @@ async function searchVideos() {
 
   try {
     const maxVideos = parseInt(document.getElementById('max_videos').value) || 5;
-    const res = await api('/api/search', {
+
+    // Step 1: Trigger GitHub Actions search workflow
+    const triggerRes = await api('/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ keyword, max_videos: maxVideos })
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    const videos = data.videos || [];
+    if (!triggerRes.ok) throw new Error('HTTP ' + triggerRes.status);
+    const triggerData = await triggerRes.json();
+    if (!triggerData.triggered) throw new Error('Failed to trigger search (status ' + triggerData.status + ')');
 
-    if (videos.length === 0) {
-      list.innerHTML = '<div class="search-empty">No videos found for "' + escHtml(keyword) + '". Try another keyword.</div>';
-      document.getElementById('video-results-hint').textContent = '0 results';
-    } else {
-      document.getElementById('video-results-hint').textContent = videos.length + ' results — click one to select';
-      list.innerHTML = '';
-      videos.forEach((v, i) => {
-        const card = document.createElement('div');
-        card.className = 'video-card';
-        card.id = 'vcard-' + i;
-        card.onclick = () => selectVideo(v, i);
+    // Step 2: Poll for results every 4 seconds (max 25 attempts = ~100s)
+    const maxAttempts = 25;
+    let attempt = 0;
+    while (attempt < maxAttempts) {
+      await new Promise(r => setTimeout(r, 4000));
+      attempt++;
+      list.innerHTML = '<div class="search-spinner"><div class="spinner-sm"></div> Waiting for results... (' + attempt * 4 + 's)</div>';
 
-        const thumb = v.thumbnail
-          ? \`<img class="video-thumb" src="\${escHtml(v.thumbnail)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">\`
-          + \`<div class="video-thumb-placeholder" style="display:none">🎬</div>\`
-          : \`<div class="video-thumb-placeholder">🎬</div>\`;
+      const pollRes = await api('/api/search-results?keyword=' + encodeURIComponent(keyword));
+      if (!pollRes.ok) continue;
+      const data = await pollRes.json();
 
-        const plays = fmtNum(v.playCount);
-        const likes = fmtNum(v.likeCount);
-        const dur   = v.duration ? v.duration + 's' : '';
-
-        card.innerHTML = \`
-          \${thumb}
-          <div class="video-info">
-            <div class="video-author">@\${escHtml(v.authorName)}</div>
-            <div class="video-desc">\${escHtml(v.description || '(no description)')}</div>
-            <div class="video-stats">
-              <span class="video-badge">▶ \${plays}</span>
-              <span class="video-badge">♥ \${likes}</span>
-              \${dur ? \`<span class="video-badge">⏱ \${dur}</span>\` : ''}
-              \${v.webUrl ? \`<a href="\${escHtml(v.webUrl)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent-hover);font-size:11px;margin-left:auto">TikTok ↗</a>\` : ''}
-            </div>
-          </div>\`;
-        list.appendChild(card);
-      });
+      if (data.ready) {
+        renderVideoResults(data.videos, keyword);
+        return;
+      }
     }
+
+    // Timeout
+    list.innerHTML = '<div class="search-empty">Search timed out for "' + escHtml(keyword) + '". Please try again.</div>';
+    document.getElementById('video-results-hint').textContent = 'Timed out';
   } catch(e) {
     list.innerHTML = '<div class="search-empty">Search failed: ' + escHtml(e.message) + '</div>';
     toast('Search failed: ' + e.message, 'error');
@@ -578,6 +565,46 @@ async function searchVideos() {
     btn.disabled = false;
     btn.innerHTML = '🔍 Search';
   }
+}
+
+function renderVideoResults(videos, keyword) {
+  const list = document.getElementById('video-list');
+  if (!videos || videos.length === 0) {
+    list.innerHTML = '<div class="search-empty">No videos found for "' + escHtml(keyword) + '". Try another keyword.</div>';
+    document.getElementById('video-results-hint').textContent = '0 results';
+    return;
+  }
+  document.getElementById('video-results-hint').textContent = videos.length + ' results — click one to select';
+  list.innerHTML = '';
+  videos.forEach((v, i) => {
+    const card = document.createElement('div');
+    card.className = 'video-card';
+    card.id = 'vcard-' + i;
+    card.onclick = () => selectVideo(v, i);
+
+    const thumb = v.thumbnail
+      ? \`<img class="video-thumb" src="\${escHtml(v.thumbnail)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">\`
+      + \`<div class="video-thumb-placeholder" style="display:none">🎬</div>\`
+      : \`<div class="video-thumb-placeholder">🎬</div>\`;
+
+    const plays = fmtNum(v.playCount);
+    const likes = fmtNum(v.likeCount);
+    const dur   = v.duration ? v.duration + 's' : '';
+
+    card.innerHTML = \`
+      \${thumb}
+      <div class="video-info">
+        <div class="video-author">@\${escHtml(v.authorName)}</div>
+        <div class="video-desc">\${escHtml(v.description || '(no description)')}</div>
+        <div class="video-stats">
+          <span class="video-badge">▶ \${plays}</span>
+          <span class="video-badge">♥ \${likes}</span>
+          \${dur ? \`<span class="video-badge">⏱ \${dur}</span>\` : ''}
+          \${v.webUrl ? \`<a href="\${escHtml(v.webUrl)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent-hover);font-size:11px;margin-left:auto">TikTok ↗</a>\` : ''}
+        </div>
+      </div>\`;
+    list.appendChild(card);
+  });
 }
 
 function selectVideo(video, index) {
@@ -1103,40 +1130,33 @@ export default {
       return json({ deleted: res.ok, status: res.status }, res.status);
     }
 
-    // POST /api/search — search TikTok via Apify (key fetched from config.json)
+    // POST /api/search — trigger GitHub Actions search workflow (tikwm blocked from CF IPs)
     if (url.pathname === '/api/search' && request.method === 'POST') {
       const body = await request.json();
       const keyword = (body.keyword || '').trim();
       const maxVideos = parseInt(body.max_videos) || 5;
       if (!keyword) return json({ error: 'keyword required' }, 400);
+      const res = await fetch(
+        `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/search.yml/dispatches`,
+        { method: 'POST', headers: ghHeaders(pat), body: JSON.stringify({ ref: BRANCH, inputs: { keyword, max_videos: String(maxVideos) } }) }
+      );
+      return json({ triggered: res.status === 204, status: res.status, keyword });
+    }
 
-      // Fetch Apify key from config.json on GitHub
-      const cfgRes = await fetch(
-        `https://api.github.com/repos/${OWNER}/${REPO}/contents/workflow/config.json`,
+    // GET /api/search-results?keyword=X — read search-results.json from GitHub
+    if (url.pathname === '/api/search-results' && request.method === 'GET') {
+      const keyword = url.searchParams.get('keyword') || '';
+      const res = await fetch(
+        `https://api.github.com/repos/${OWNER}/${REPO}/contents/workflow/search-results.json?t=${Date.now()}`,
         { headers: ghHeaders(pat) }
       );
-      const cfgData = await cfgRes.json();
-      const cfg = JSON.parse(atob(cfgData.content.replace(/\n/g, '')));
-      const apifyKey = cfg.apify_api_key;
-
-      // Use tikwm search — free, returns 10+ results instantly
-      const tikwmRes = await fetch(
-        `https://www.tikwm.com/api/feed/search?keywords=${encodeURIComponent(keyword)}&count=${maxVideos}&cursor=0&hd=1`
-      );
-      const tikwmData = await tikwmRes.json();
-      const rawVideos = (tikwmData.data && tikwmData.data.videos) || [];
-      const videos = rawVideos.slice(0, maxVideos).map(v => ({
-        videoId    : v.id || '',
-        description: v.title || v.desc || '',
-        videoUrl   : v.play || v.hdplay || '',
-        webUrl     : v.id ? `https://www.tiktok.com/@${(v.author&&v.author.unique_id)||'unknown'}/video/${v.id}` : '',
-        authorName : (v.author && v.author.unique_id) || '',
-        thumbnail  : v.cover || v.origin_cover || '',
-        playCount  : v.play_count  || 0,
-        likeCount  : v.digg_count  || 0,
-        duration   : v.duration    || 0
-      }));
-      return json({ videos, keyword });
+      if (!res.ok) return json({ ready: false });
+      const data = await res.json();
+      const results = JSON.parse(atob(data.content.replace(/\n/g, '')));
+      if (results.keyword.toLowerCase() !== keyword.toLowerCase()) return json({ ready: false, currentKeyword: results.keyword });
+      const age = Date.now() - new Date(results.timestamp).getTime();
+      if (age > 10 * 60 * 1000) return json({ ready: false, reason: 'stale' });
+      return json({ ready: true, videos: results.videos, keyword: results.keyword });
     }
 
     return new Response('Not found', { status: 404 });
