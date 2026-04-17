@@ -293,14 +293,28 @@ function parseAnalysisResponse(data, isClaude) {
 }
 
 async function createVideoTask(prompt) {
-    const model  = config.seedance.model || 'wan/2-6-text-to-video';
-    const isSora = model.startsWith('sora');
-    const isWan  = model.startsWith('wan');
+    const model   = config.seedance.model || 'wan/2-6-text-to-video';
+    const isSora  = model.startsWith('sora');
+    const isWan   = model.startsWith('wan');
+    const isGrok  = model.startsWith('grok');
 
     logSection(`STEP 5 — Kie.ai: Create Video Task`);
 
     let input;
-    if (isSora) {
+    if (isGrok) {
+        const duration = Math.min(config.seedance.duration || 6, 10); // Grok Aurora max 10s
+        input = {
+            prompt,
+            duration    : String(duration),
+            resolution  : config.seedance.resolution || '480p',
+            aspect_ratio: config.seedance.aspect_ratio || '9:16',
+            mode        : 'normal'
+        };
+        log(`  Model        : ${model}`);
+        log(`  Duration     : ${input.duration}s`);
+        log(`  Resolution   : ${input.resolution}`);
+        log(`  Aspect ratio : ${input.aspect_ratio}`);
+    } else if (isSora) {
         input = {
             prompt,
             n_frames    : String(config.seedance.duration || 15),

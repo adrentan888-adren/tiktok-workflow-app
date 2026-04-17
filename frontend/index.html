@@ -284,6 +284,7 @@
           <label>Video Model</label>
           <select id="seedance_model" onchange="onModelChange()">
             <option value="wan/2-6-text-to-video">Wan 2.6 (recommended, $1.05/15s)</option>
+            <option value="grok-imagine/text-to-video">Grok Aurora ($0.05/s)</option>
             <option value="sora-2-text-to-video">Sora 2 (~$2/15s)</option>
             <option value="bytedance/seedance-2-lite-text-to-video">Seedance 2 Lite</option>
           </select>
@@ -503,6 +504,14 @@ async function saveConfig() {
 function onModelChange() {
   const model = document.getElementById('seedance_model').value;
   document.getElementById('resolution-field').style.display = model.startsWith('sora') ? 'none' : '';
+  // Grok Aurora max duration is 10s
+  const durSelect = document.getElementById('seedance_duration');
+  if (model.startsWith('grok')) {
+    Array.from(durSelect.options).forEach(o => { o.disabled = parseInt(o.value) > 10; });
+    if (parseInt(durSelect.value) > 10) setSelect('seedance_duration', '10');
+  } else {
+    Array.from(durSelect.options).forEach(o => { o.disabled = false; });
+  }
 }
 
 // ── TikTok Search ──────────────────────────────────────────────────────────────
