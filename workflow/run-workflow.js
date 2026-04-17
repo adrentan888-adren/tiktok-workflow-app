@@ -192,10 +192,25 @@ async function analyzeVideo(videoBuffer, downloadUrl) {
                 source: { type: 'base64', media_type: 'image/jpeg', data: b64 }
             }));
 
+            // ── Optional product image ─────────────────────────────────────────
+            const productImagePath = path.join(__dirname, 'product-image.jpg');
+            let finalPrompt = promptText;
+            if (fs.existsSync(productImagePath)) {
+                const productB64 = fs.readFileSync(productImagePath).toString('base64');
+                imageBlocks.push({
+                    type: 'image',
+                    source: { type: 'base64', media_type: 'image/jpeg', data: productB64 }
+                });
+                finalPrompt = promptText + '\n\nIMPORTANT: The last image provided is a product photo. Rewrite each segment\'s visual_action to feature this product prominently, replacing any similar products visible in the video frames with this exact product. Describe the product\'s specific appearance — shape, colour, branding, texture, and any visible text — in precise detail within every visual_action. The goal is a 15-second AI-generated video showcasing this product in the same setting, mood, and style as the original TikTok content.';
+                log(`  Product image : included (${(fs.statSync(productImagePath).size / 1024).toFixed(0)} KB)`);
+            } else {
+                log(`  Product image : none`);
+            }
+
             const body = {
                 model,
                 max_tokens: 2000,
-                messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: promptText }] }]
+                messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: finalPrompt }] }]
             };
 
             res  = await fetch('https://api.kie.ai/claude/v1/messages', {

@@ -101,6 +101,47 @@ export default {
       return json(data, res.status);
     }
 
+    // GET /api/product-image — check if product-image.jpg exists in GitHub repo
+    if (url.pathname === '/api/product-image' && request.method === 'GET') {
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/product-image.jpg\`,
+        { headers: ghHeaders(pat) }
+      );
+      if (res.status === 404) return json({ exists: false });
+      const data = await res.json();
+      return json({ exists: true, content: data.content, sha: data.sha }, res.status);
+    }
+
+    // PUT /api/product-image — save product-image.jpg to GitHub repo
+    if (url.pathname === '/api/product-image' && request.method === 'PUT') {
+      const body = await request.json();
+      const payload = {
+        message: 'product-image: update',
+        content: body.content
+      };
+      if (body.sha) payload.sha = body.sha;
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/product-image.jpg\`,
+        { method: 'PUT', headers: ghHeaders(pat), body: JSON.stringify(payload) }
+      );
+      const data = await res.json();
+      return json(data, res.status);
+    }
+
+    // DELETE /api/product-image — remove product-image.jpg from GitHub repo
+    if (url.pathname === '/api/product-image' && request.method === 'DELETE') {
+      const body = await request.json();
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/product-image.jpg\`,
+        {
+          method: 'DELETE',
+          headers: ghHeaders(pat),
+          body: JSON.stringify({ message: 'product-image: remove', sha: body.sha })
+        }
+      );
+      return json({ deleted: res.ok, status: res.status }, res.status);
+    }
+
     // POST /api/search — search TikTok via Apify (key fetched from config.json)
     if (url.pathname === '/api/search' && request.method === 'POST') {
       const body = await request.json();
