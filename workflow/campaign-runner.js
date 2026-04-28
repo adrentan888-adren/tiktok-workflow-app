@@ -88,20 +88,23 @@ async function analyzeVideo(videoBuffer, campaign) {
 }
 
 // ── Kie.ai video generation ───────────────────────────────────────────────────
-async function generateVideo(prompt) {
-    const model    = config.seedance.model    || 'wan/2-6-text-to-video';
+async function generateVideo(prompt, modelOverrides = {}) {
+    const model    = modelOverrides.model    || config.seedance.model    || 'grok-imagine/text-to-video';
+    const duration = modelOverrides.duration || config.seedance.duration || 10;
+    const resolution  = config.seedance.resolution  || '720p';
+    const aspectRatio = config.seedance.aspect_ratio || '9:16';
     const isGrok   = model.startsWith('grok');
     const isWan    = model.startsWith('wan');
     const isSora   = model.startsWith('sora');
     let input;
     if (isGrok) {
-        input = { prompt, duration: String(Math.min(config.seedance.duration || 6, 10)), resolution: config.seedance.resolution || '480p', aspect_ratio: config.seedance.aspect_ratio || '9:16', mode: 'normal' };
+        input = { prompt, duration: String(Math.min(duration, 10)), resolution, aspect_ratio: aspectRatio, mode: 'normal' };
     } else if (isWan) {
-        input = { prompt, duration: String(config.seedance.duration || 15), resolution: config.seedance.resolution || '720p', aspect_ratio: config.seedance.aspect_ratio || '9:16' };
+        input = { prompt, duration: String(Math.min(duration, 15)), resolution, aspect_ratio: aspectRatio };
     } else if (isSora) {
-        input = { prompt, n_frames: String(config.seedance.duration || 15), aspect_ratio: config.seedance.aspect_ratio || 'portrait' };
+        input = { prompt, n_frames: String(duration), aspect_ratio: aspectRatio === '9:16' ? 'portrait' : aspectRatio };
     } else {
-        input = { prompt, duration: config.seedance.duration || 15, resolution: config.seedance.resolution || '720p', aspect_ratio: config.seedance.aspect_ratio || '9:16', generate_audio: true };
+        input = { prompt, duration, resolution, aspect_ratio: aspectRatio, generate_audio: true };
     }
 
     const res  = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
@@ -134,11 +137,11 @@ async function generateVideo(prompt) {
     throw new Error('Video generation timed out');
 }
 
-async function generateVideoWithRetry(prompt) {
+async function generateVideoWithRetry(prompt, modelOverrides = {}) {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            return await generateVideo(prompt);
+            return await generateVideo(prompt, modelOverrides);
         } catch (err) {
             const isServerError = /server exception|please try again|internal/i.test(err.message);
             if (attempt < maxAttempts && isServerError) {
@@ -245,8 +248,9 @@ async function runCampaign(campaign) {
 
     // Step 5: Generate video
     log('Step 5 — Generating video...');
-    log(`  Model: ${config.seedance && config.seedance.model} | Duration: ${config.seedance && config.seedance.duration}s | Resolution: ${config.seedance && config.seedance.resolution}`);
-    const videoUrl = await generateVideoWithRetry(prompt);
+    const modelOverrides = { model: campaign.video_model, duration: campaign.video_duration };
+    log(`  Model: ${modelOverrides.model || config.seedance.model} | Duration: ${modelOverrides.duration || config.seedance.duration}s | Resolution: ${config.seedance.resolution}`);
+    const videoUrl = await generateVideoWithRetry(prompt, modelOverrides);
     if (!videoUrl) throw new Error('No video URL returned');
     log(`  ✅ Generated video URL: ${videoUrl}`);
 

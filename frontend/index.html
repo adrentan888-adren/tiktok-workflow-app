@@ -205,6 +205,13 @@
   .account-check .acc-name { font-size:13px; font-weight:600; }
   .account-check .acc-sub  { font-size:11px; color:var(--text-muted); }
   .platform-icon { font-size:14px; }
+  .model-card { display:flex; align-items:center; gap:10px; border:2px solid var(--border); border-radius:8px; padding:12px 16px; cursor:pointer; transition:border-color .2s,background .2s; flex:1; min-width:160px; }
+  .model-card:has(input:checked) { border-color:var(--accent); background:rgba(56,139,253,.08); }
+  .model-card input[type=radio] { width:16px; height:16px; accent-color:var(--accent); flex-shrink:0; }
+  .model-card-name { font-size:13px; font-weight:600; }
+  .model-card-sub  { font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .price-est { margin-top:8px; font-size:13px; font-weight:600; color:var(--accent); }
+  input[type=range] { width:100%; accent-color:var(--accent); }
 
   /* ── Logs tab ── */
   .log-run { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }
@@ -461,6 +468,30 @@
             <option value="72">Every 3 days</option>
             <option value="168">Every week</option>
           </select>
+        </div>
+        <div class="field full">
+          <label>Video Model</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <label class="model-card">
+              <input type="radio" name="campaign_model" value="grok-imagine/text-to-video" id="model-grok" onchange="onCampaignModelChange()" checked>
+              <div>
+                <div class="model-card-name">⚡ Grok Aurora</div>
+                <div class="model-card-sub">Max 10s · $0.05/s</div>
+              </div>
+            </label>
+            <label class="model-card">
+              <input type="radio" name="campaign_model" value="seedance-1-lite" id="model-seedance" onchange="onCampaignModelChange()">
+              <div>
+                <div class="model-card-name">🎬 Seedance Lite</div>
+                <div class="model-card-sub">Max 15s · ~$0.10/video</div>
+              </div>
+            </label>
+          </div>
+          <div style="margin-top:14px;">
+            <label style="display:flex;justify-content:space-between;"><span>Duration</span><strong><span id="campaign-duration-val">10</span>s</strong></label>
+            <input type="range" id="campaign-duration" min="3" max="10" value="10" style="margin-top:6px" oninput="onCampaignDurationChange()">
+          </div>
+          <div class="price-est" id="campaign-price-est">Estimated cost: ~$0.50 / video</div>
         </div>
         <div class="field full">
           <label>Product Photo <span style="font-weight:400;color:var(--text-muted)">(optional — used to replace product in AI-generated video)</span></label>
@@ -1149,6 +1180,38 @@ function switchTab(tab) {
   if (tab === 'logs') loadLogs();
 }
 
+// ── Campaign model / pricing ───────────────────────────────────────────────────
+const CAMPAIGN_MODELS = {
+  'grok-imagine/text-to-video': { label: 'Grok Aurora',    maxDuration: 10, pricePerSec: 0.05,  flatPrice: null },
+  'seedance-1-lite':            { label: 'Seedance Lite',  maxDuration: 15, pricePerSec: null,   flatPrice: 0.10 },
+};
+
+function getSelectedModel() {
+  return document.querySelector('input[name=campaign_model]:checked')?.value || 'grok-imagine/text-to-video';
+}
+
+function onCampaignModelChange() {
+  const m   = CAMPAIGN_MODELS[getSelectedModel()];
+  const dur = document.getElementById('campaign-duration');
+  dur.max   = m.maxDuration;
+  if (parseInt(dur.value) > m.maxDuration) { dur.value = m.maxDuration; }
+  onCampaignDurationChange();
+}
+
+function onCampaignDurationChange() {
+  const model = getSelectedModel();
+  const m     = CAMPAIGN_MODELS[model];
+  const dur   = parseInt(document.getElementById('campaign-duration').value);
+  document.getElementById('campaign-duration-val').textContent = dur;
+  let est;
+  if (m.flatPrice !== null) {
+    est = `~$${m.flatPrice.toFixed(2)} / video (flat rate)`;
+  } else {
+    est = `~$${(m.pricePerSec * dur).toFixed(2)} / video  ($${m.pricePerSec}/s × ${dur}s)`;
+  }
+  document.getElementById('campaign-price-est').textContent = 'Estimated cost: ' + est;
+}
+
 // ── Campaigns ──────────────────────────────────────────────────────────────────
 let campaignsSha       = null;
 let socialAccounts     = [];   // [{username, platform, display_name, handle, img}]
@@ -1204,6 +1267,7 @@ function renderCampaignList(campaigns) {
       <div class="campaign-meta">
         <span>🔍 ${escHtml(c.keyword)}</span>
         <span>🕐 Every ${c.interval_hours}h</span>
+        <span>🎬 ${(CAMPAIGN_MODELS[c.video_model]||{label:'Grok Aurora'}).label} · ${c.video_duration||10}s</span>
         <span>📅 Last: ${lastRun}</span>
         <span>⏭ Next: ${nextRun}</span>
       </div>
@@ -1250,6 +1314,10 @@ async function openCampaignForm(campaignId) {
     document.getElementById('campaign-name').value = '';
     document.getElementById('campaign-keyword').value = '';
     document.getElementById('campaign-interval').value = '24';
+    document.getElementById('model-grok').checked = true;
+    document.getElementById('campaign-duration').max = '10';
+    document.getElementById('campaign-duration').value = '10';
+    onCampaignDurationChange();
     clearCampaignProductUI();
     renderAccountCheckboxes([]);
   } else {
@@ -1265,6 +1333,13 @@ async function openCampaignForm(campaignId) {
     document.getElementById('campaign-name').value = c.name;
     document.getElementById('campaign-keyword').value = c.keyword;
     document.getElementById('campaign-interval').value = String(c.interval_hours || 24);
+    const savedModel = c.video_model || 'grok-imagine/text-to-video';
+    const modelRadio = document.querySelector(`input[name=campaign_model][value="${savedModel}"]`);
+    if (modelRadio) modelRadio.checked = true;
+    const mCfg = CAMPAIGN_MODELS[savedModel] || CAMPAIGN_MODELS['grok-imagine/text-to-video'];
+    document.getElementById('campaign-duration').max = String(mCfg.maxDuration);
+    document.getElementById('campaign-duration').value = String(c.video_duration || mCfg.maxDuration);
+    onCampaignDurationChange();
     clearCampaignProductUI();
     if (c.has_product_photo) {
       document.getElementById('campaign-product-placeholder').style.display = 'none';
@@ -1291,11 +1366,13 @@ function getCheckedAccounts() {
 }
 
 async function saveCampaign() {
-  const name     = document.getElementById('campaign-name').value.trim();
-  const keyword  = document.getElementById('campaign-keyword').value.trim();
-  const interval = parseInt(document.getElementById('campaign-interval').value) || 24;
-  const accounts = getCheckedAccounts();
-  const editId   = document.getElementById('campaign-edit-id').value;
+  const name        = document.getElementById('campaign-name').value.trim();
+  const keyword     = document.getElementById('campaign-keyword').value.trim();
+  const interval    = parseInt(document.getElementById('campaign-interval').value) || 24;
+  const accounts    = getCheckedAccounts();
+  const editId      = document.getElementById('campaign-edit-id').value;
+  const videoModel  = getSelectedModel();
+  const videoDuration = parseInt(document.getElementById('campaign-duration').value) || 10;
 
   if (!name)    { toast('Enter a campaign name', 'error'); return; }
   if (!keyword) { toast('Enter a keyword', 'error'); return; }
@@ -1311,11 +1388,12 @@ async function saveCampaign() {
 
     const idx = campaigns.findIndex(c => c.id === editId);
     if (idx >= 0) {
-      Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, accounts });
+      Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, accounts, video_model: videoModel, video_duration: videoDuration });
     } else {
       campaigns.push({
         id: editId,
         name, keyword, interval_hours: interval, accounts,
+        video_model: videoModel, video_duration: videoDuration,
         status: 'active',
         created_at: new Date().toISOString(),
         last_run_at: null,
