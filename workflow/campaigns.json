@@ -16,7 +16,7 @@
       "status": "active",
       "created_at": "2026-04-28T07:15:59.993Z",
       "last_run_at": "2026-04-28T07:50:48.864Z",
-      "next_run_at": "2026-04-28T13:50:48.864Z",
+      "next_run_at": "2026-04-28T07:54:29.132Z",
       "last_result": {
         "success": false,
         "error": "Video generation failed: Server exception, please try again later",
