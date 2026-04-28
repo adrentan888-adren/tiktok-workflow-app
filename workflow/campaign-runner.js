@@ -126,9 +126,29 @@ async function generateVideo(prompt) {
             const result = JSON.parse(d.resultJson || '{}');
             return result.resultUrls && result.resultUrls[0];
         }
-        if (d.state === 'fail') throw new Error(`Video generation failed: ${d.failMsg}`);
+        if (d.state === 'fail') {
+            const msg = d.failMsg || 'unknown error';
+            throw new Error(`Video generation failed: ${msg}`);
+        }
     }
     throw new Error('Video generation timed out');
+}
+
+async function generateVideoWithRetry(prompt) {
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await generateVideo(prompt);
+        } catch (err) {
+            const isServerError = /server exception|please try again|internal/i.test(err.message);
+            if (attempt < maxAttempts && isServerError) {
+                log(`  Video attempt ${attempt} failed (${err.message}), retrying in 60s...`);
+                await sleep(60000);
+            } else {
+                throw err;
+            }
+        }
+    }
 }
 
 // ── Post to social media ──────────────────────────────────────────────────────
@@ -206,7 +226,7 @@ async function runCampaign(campaign) {
 
     // Step 5: Generate video
     log('Step 5 — Generating video...');
-    const videoUrl = await generateVideo(prompt);
+    const videoUrl = await generateVideoWithRetry(prompt);
     if (!videoUrl) throw new Error('No video URL returned');
     log(`  Generated: ${videoUrl.substring(0, 80)}...`);
 
