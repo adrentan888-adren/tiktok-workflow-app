@@ -93,20 +93,22 @@ async function analyzeVideo(videoBuffer, campaign) {
 async function generateVideo(prompt, modelOverrides = {}) {
     const model    = modelOverrides.model    || config.seedance.model    || 'grok-imagine/text-to-video';
     const duration = modelOverrides.duration || config.seedance.duration || 10;
-    const resolution  = config.seedance.resolution  || '720p';
-    const aspectRatio = config.seedance.aspect_ratio || '9:16';
+    // Always force TikTok dimensions: 9:16 vertical
+    // Grok Aurora max supported resolution is 720p on Kie.ai; Wan supports 1080p
     const isGrok   = model.startsWith('grok');
     const isWan    = model.startsWith('wan');
     const isSora   = model.startsWith('sora');
+    const ASPECT   = '9:16';
+    const RES      = isGrok ? '720p' : '1080p';   // TikTok: 720×1280 or 1080×1920
     let input;
     if (isGrok) {
-        input = { prompt, duration: String(Math.min(duration, 10)), resolution, aspect_ratio: aspectRatio, mode: 'normal' };
+        input = { prompt, duration: String(Math.min(duration, 10)), resolution: RES, aspect_ratio: ASPECT, mode: 'normal' };
     } else if (isWan) {
-        input = { prompt, duration: String(Math.min(duration, 15)), resolution, aspect_ratio: aspectRatio };
+        input = { prompt, duration: String(Math.min(duration, 15)), resolution: RES, aspect_ratio: ASPECT };
     } else if (isSora) {
-        input = { prompt, n_frames: String(duration), aspect_ratio: aspectRatio === '9:16' ? 'portrait' : aspectRatio };
+        input = { prompt, n_frames: String(duration), aspect_ratio: 'portrait' };
     } else {
-        input = { prompt, duration, resolution, aspect_ratio: aspectRatio, generate_audio: true };
+        input = { prompt, duration, resolution: RES, aspect_ratio: ASPECT, generate_audio: true };
     }
 
     const res  = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
@@ -260,9 +262,11 @@ async function runCampaign(campaign) {
     // ── Step 5: Generate Video ───────────────────────────────────────────────
     log(`\n[STEP 5] Generate AI Video`);
     const modelOverrides = { model: campaign.video_model, duration: campaign.video_duration };
-    log(`  gen_model     : ${modelOverrides.model || config.seedance.model}`);
+    const _m = modelOverrides.model || config.seedance.model || '';
+    log(`  gen_model     : ${_m}`);
     log(`  gen_duration  : ${modelOverrides.duration || config.seedance.duration}s`);
-    log(`  resolution    : ${config.seedance.resolution}`);
+    log(`  resolution    : ${_m.startsWith('grok') ? '720p' : '1080p'} (9:16 TikTok)`);
+
     const videoUrl = await generateVideoWithRetry(prompt, modelOverrides);
     if (!videoUrl) throw new Error('No video URL returned');
     log(`  VIDEO_URL     : ${videoUrl}`);
