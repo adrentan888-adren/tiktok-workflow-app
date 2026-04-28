@@ -16,7 +16,7 @@
       "status": "active",
       "created_at": "2026-04-28T07:15:59.993Z",
       "last_run_at": "2026-04-28T07:31:26.921Z",
-      "next_run_at": "2026-04-28T13:31:26.921Z",
+      "next_run_at": "2026-04-28T07:50:10.945Z",
       "last_result": {
         "success": false,
         "error": "campaign is not defined",
