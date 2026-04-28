@@ -70,6 +70,15 @@ export default {
       return json({ status: res.status });
     }
 
+    // POST /api/trigger-campaign-runner — trigger campaign-runner workflow_dispatch
+    if (url.pathname === '/api/trigger-campaign-runner' && request.method === 'POST') {
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/actions/workflows/campaign-runner.yml/dispatches\`,
+        { method: 'POST', headers: ghHeaders(pat), body: JSON.stringify({ ref: BRANCH }) }
+      );
+      return json({ status: res.status });
+    }
+
     // GET /api/runs — list recent workflow runs
     if (url.pathname === '/api/runs' && request.method === 'GET') {
       const res = await fetch(

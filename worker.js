@@ -1175,6 +1175,7 @@ function renderCampaignList(campaigns) {
       <div class="campaign-actions">
         <button class="btn btn-outline" style="font-size:12px" onclick="openCampaignForm('\${c.id}')">✏️ Edit</button>
         <button class="btn btn-outline" style="font-size:12px" onclick="toggleCampaignStatus('\${c.id}')">\${c.status==='active'?'⏸ Pause':'▶ Resume'}</button>
+        <button class="btn btn-outline" style="font-size:12px;color:#0ea5e9;border-color:#0ea5e9" onclick="runCampaignNow('\${c.id}')">▶▶ Post Now</button>
         <button class="btn btn-outline" style="font-size:12px;color:#e53e3e;border-color:#e53e3e" onclick="deleteCampaign('\${c.id}')">🗑 Delete</button>
       </div>\`;
     el.appendChild(div);
@@ -1345,6 +1346,26 @@ async function deleteCampaign(id) {
   } catch(e) { toast('Failed: ' + e.message, 'error'); }
 }
 
+async function runCampaignNow(id) {
+  if (!confirm('Force this campaign to run now?')) return;
+  try {
+    // Set next_run_at to now so runner picks it up immediately
+    const res  = await api('/api/campaigns');
+    const data = await res.json();
+    const obj  = JSON.parse(atob(data.content.replace(/\\n/g, '')));
+    const c    = (obj.campaigns || []).find(x => x.id === id);
+    if (!c) throw new Error('Campaign not found');
+    c.next_run_at = new Date().toISOString();
+    const content = btoa(JSON.stringify(obj, null, 2));
+    await api('/api/campaigns', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'campaign: force run now', content, sha: data.sha }) });
+    // Trigger the campaign runner workflow
+    const trigRes = await api('/api/trigger-campaign-runner', { method: 'POST' });
+    if (!trigRes.ok) throw new Error('Trigger failed: HTTP ' + trigRes.status);
+    toast('Campaign triggered! It will run shortly.', 'success');
+    await loadCampaigns();
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
 // ── Campaign product photo ─────────────────────────────────────────────────────
 let pendingCampaignProductB64 = null;
 
@@ -1459,6 +1480,15 @@ export default {
     if (url.pathname === '/api/trigger' && request.method === 'POST') {
       const res = await fetch(
         `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/run-workflow.yml/dispatches`,
+        { method: 'POST', headers: ghHeaders(pat), body: JSON.stringify({ ref: BRANCH }) }
+      );
+      return json({ status: res.status });
+    }
+
+    // POST /api/trigger-campaign-runner — trigger campaign-runner workflow_dispatch
+    if (url.pathname === '/api/trigger-campaign-runner' && request.method === 'POST') {
+      const res = await fetch(
+        `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/campaign-runner.yml/dispatches`,
         { method: 'POST', headers: ghHeaders(pat), body: JSON.stringify({ ref: BRANCH }) }
       );
       return json({ status: res.status });
