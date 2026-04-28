@@ -156,6 +156,15 @@ async function postToSocialMedia(videoUrl, campaign, videoCaption) {
     const apiKey = config.uploadpost_api_key;
     if (!apiKey) throw new Error('uploadpost_api_key not set in config.json');
 
+    // Download video binary so upload-post gets a real file, not a URL with missing Content-Type
+    log(`  Downloading generated video for upload...`);
+    const vRes = await fetch(videoUrl);
+    log(`  Video fetch status: ${vRes.status} content-type: ${vRes.headers.get('content-type') || '(none)'}`);
+    if (!vRes.ok) throw new Error(`Failed to download generated video: HTTP ${vRes.status}`);
+    const vBuffer = Buffer.from(await vRes.arrayBuffer());
+    log(`  Video size: ${(vBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    const vBlob = new Blob([vBuffer], { type: 'video/mp4' });
+
     // Group accounts by username (one API call per profile)
     const grouped = {};
     for (const acc of (campaign.accounts || [])) {
@@ -163,22 +172,26 @@ async function postToSocialMedia(videoUrl, campaign, videoCaption) {
         grouped[acc.username].push(acc.platform);
     }
 
+    const caption = videoCaption || campaign.caption || `#${(campaign.keyword || '').replace(/\s+/g, '')} #viral #trending #ai`;
+    log(`  Caption: ${caption.substring(0, 120)}`);
+
     const results = [];
     for (const [username, platforms] of Object.entries(grouped)) {
-        log(`  Posting to ${platforms.join(', ')} via profile "${username}"...`);
-        const caption = videoCaption || campaign.caption || `#${(campaign.keyword || '').replace(/\s+/g, '')} #viral #trending #ai`;
+        log(`  Posting to platforms: ${platforms.join(', ')} | profile: "${username}"`);
         const form = new FormData();
         form.append('user', username);
         platforms.forEach(p => form.append('platform[]', p));
-        form.append('video', videoUrl);
+        form.append('video', vBlob, 'video.mp4');
         form.append('title', caption);
         form.append('async_upload', 'true');
 
         const res  = await fetch('https://api.upload-post.com/api/upload', {
             method: 'POST', headers: { 'Authorization': `Apikey ${apiKey}` }, body: form
         });
-        const data = await res.json();
-        log(`  Post result: ${JSON.stringify(data).substring(0, 200)}`);
+        const rawText = await res.text();
+        log(`  Upload-post HTTP ${res.status}: ${rawText}`);
+        let data;
+        try { data = JSON.parse(rawText); } catch(e) { data = { raw: rawText }; }
         results.push({ username, platforms, response: data });
     }
     return results;
@@ -186,13 +199,17 @@ async function postToSocialMedia(videoUrl, campaign, videoCaption) {
 
 // ── Run one campaign ──────────────────────────────────────────────────────────
 async function runCampaign(campaign) {
-    log(`\n=== Running campaign: "${campaign.name}" (keyword: "${campaign.keyword}") ===`);
+    log(`\n========================================`);
+    log(`Campaign: "${campaign.name}" | ID: ${campaign.id}`);
+    log(`Keyword: "${campaign.keyword}" | Accounts: ${(campaign.accounts||[]).map(a=>a.username+'/'+a.platform).join(', ')}`);
+    log(`========================================`);
 
     // Step 1: Search TikTok via tikwm
     log('Step 1 — Searching TikTok...');
     const maxVideos = campaign.max_videos || 5;
     const searchRes = await fetch(`https://www.tikwm.com/api/feed/search?keywords=${encodeURIComponent(campaign.keyword)}&count=${maxVideos}&cursor=0&hd=1`);
     const searchData = await searchRes.json();
+    log(`  tikwm response code: ${searchData.code} | videos found: ${(searchData.data && searchData.data.videos || []).length}`);
     if (searchData.code !== 0) throw new Error(`tikwm search error: ${searchData.msg}`);
     const rawVideos = (searchData.data && searchData.data.videos) || [];
     if (rawVideos.length === 0) throw new Error('No videos found for keyword: ' + campaign.keyword);
@@ -200,7 +217,7 @@ async function runCampaign(campaign) {
     // Pick video with highest play count
     const video = rawVideos.sort((a, b) => (b.play_count || 0) - (a.play_count || 0))[0];
     const videoCaption = (video.title || video.desc || '').trim();
-    log(`  Selected: @${video.author && video.author.unique_id} — ${videoCaption.substring(0, 60)}`);
+    log(`  Selected: @${video.author && video.author.unique_id} | plays: ${video.play_count} | caption: ${videoCaption.substring(0, 80)}`);
 
     // Step 2: Get HD download URL
     log('Step 2 — Getting HD URL...');
@@ -210,29 +227,33 @@ async function runCampaign(campaign) {
     });
     const tikwmData = await tikwmRes.json();
     const downloadUrl = (tikwmData.data && (tikwmData.data.hdplay || tikwmData.data.play)) || video.play || video.hdplay;
+    log(`  Download URL: ${(downloadUrl || 'NOT FOUND').substring(0, 100)}`);
     if (!downloadUrl) throw new Error('Could not resolve download URL');
 
     // Step 3: Download video
     log('Step 3 — Downloading video...');
     const dlRes = await fetch(downloadUrl);
+    log(`  Download HTTP status: ${dlRes.status}`);
     if (!dlRes.ok) throw new Error(`Download failed: ${dlRes.status}`);
     const videoBuffer = Buffer.from(await dlRes.arrayBuffer());
-    log(`  Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(1)} MB`);
+    log(`  Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
 
     // Step 4: AI Analysis
     log('Step 4 — AI analysis...');
     const prompt = await analyzeVideo(videoBuffer, campaign);
-    log(`  Prompt length: ${prompt.length} chars`);
+    log(`  Analysis prompt (${prompt.length} chars): ${prompt.substring(0, 200)}...`);
 
     // Step 5: Generate video
     log('Step 5 — Generating video...');
+    log(`  Model: ${config.seedance && config.seedance.model} | Duration: ${config.seedance && config.seedance.duration}s | Resolution: ${config.seedance && config.seedance.resolution}`);
     const videoUrl = await generateVideoWithRetry(prompt);
     if (!videoUrl) throw new Error('No video URL returned');
-    log(`  Generated: ${videoUrl.substring(0, 80)}...`);
+    log(`  ✅ Generated video URL: ${videoUrl}`);
 
     // Step 6: Post to social media
     log('Step 6 — Posting to social media...');
     const postResults = await postToSocialMedia(videoUrl, campaign, videoCaption);
+    log(`  Post results: ${JSON.stringify(postResults)}`);
 
     return { videoUrl, postResults };
 }
