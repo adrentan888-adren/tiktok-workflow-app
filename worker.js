@@ -181,6 +181,11 @@ const HTML = `<!DOCTYPE html>
     .form-grid .full { grid-column: 1; }
     .keyword-row { flex-direction: column; }
   }
+  /* ── Tabs ── */
+  .tab-bar { display:flex; gap:4px; padding:0 16px; max-width:860px; margin:0 auto 0; border-bottom:2px solid var(--border); }
+  .tab-btn { background:none; border:none; padding:10px 20px; font-size:14px; font-weight:500; color:var(--text-muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .2s, border-color .2s; }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
   /* ── Campaigns ── */
   .campaign-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
   .campaign-card-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
@@ -216,7 +221,12 @@ const HTML = `<!DOCTYPE html>
   <span style="color:var(--text-muted);font-size:13px" id="loading-text">Loading config...</span>
 </div>
 
-<div class="container">
+<div class="tab-bar">
+  <button class="tab-btn active" id="tab-btn-workflow" onclick="switchTab('workflow')">🎬 Workflow</button>
+  <button class="tab-btn" id="tab-btn-campaigns" onclick="switchTab('campaigns')">📅 Campaigns</button>
+</div>
+
+<div id="tab-workflow" class="container">
 
   <!-- Config Form -->
   <div class="card">
@@ -392,7 +402,9 @@ const HTML = `<!DOCTYPE html>
 
 </div>
 
-<!-- ── Campaigns ────────────────────────────────────────────────────────────── -->
+</div><!-- /tab-workflow -->
+
+<div id="tab-campaigns" class="container" style="display:none">
 <div class="card" id="campaigns-card">
   <div class="card-header" onclick="toggleCard(this)">
     <span>📅 Campaigns — Auto-generate &amp; Post</span>
@@ -448,6 +460,7 @@ const HTML = `<!DOCTYPE html>
 
   </div>
 </div>
+</div><!-- /tab-campaigns -->
 
 <div class="toast hidden" id="toast"></div>
 
@@ -1077,6 +1090,14 @@ function setProductStatus(msg, type) {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
+// ── Tab switching ──────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tab-workflow').style.display  = tab === 'workflow'  ? '' : 'none';
+  document.getElementById('tab-campaigns').style.display = tab === 'campaigns' ? '' : 'none';
+  document.getElementById('tab-btn-workflow').classList.toggle('active',  tab === 'workflow');
+  document.getElementById('tab-btn-campaigns').classList.toggle('active', tab === 'campaigns');
+}
+
 // ── Campaigns ──────────────────────────────────────────────────────────────────
 let campaignsSha       = null;
 let socialAccounts     = [];   // [{username, platform, display_name, handle, img}]
@@ -1177,7 +1198,6 @@ async function openCampaignForm(campaignId) {
     document.getElementById('campaign-name').value = '';
     document.getElementById('campaign-keyword').value = '';
     document.getElementById('campaign-interval').value = '24';
-    document.getElementById('campaign-max-videos').value = '5';
     document.getElementById('campaign-caption').value = '';
     renderAccountCheckboxes([]);
   } else {
