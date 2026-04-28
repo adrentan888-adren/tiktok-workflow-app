@@ -71,7 +71,9 @@ async function analyzeVideo(videoBuffer, campaign) {
             body: JSON.stringify({ model, max_tokens: 2000, messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }] })
         });
         const data = await res.json();
-        if (data.code === 500 && attempt < 3) continue;
+        // Retry on any server/network error from Kie.ai or Anthropic
+        const isRetryable = data.code === 500 || data.type === 'error' || (data.error && data.error.type === 'api_error');
+        if (isRetryable && attempt < 3) { log(`  API error (attempt ${attempt}): ${JSON.stringify(data).substring(0,120)}`); continue; }
         let content = '';
         try { content = data.content[0].text; } catch(e) {}
         if (!content) throw new Error('Claude returned empty: ' + JSON.stringify(data).substring(0, 200));
