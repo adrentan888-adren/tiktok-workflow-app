@@ -79,6 +79,22 @@ export default {
       return json({ status: res.status });
     }
 
+    // GET /api/logs — list recent runs from all workflows
+    if (url.pathname === '/api/logs' && request.method === 'GET') {
+      const [r1, r2, r3] = await Promise.all([
+        fetch(\`https://api.github.com/repos/\${OWNER}/\${REPO}/actions/workflows/campaign-runner.yml/runs?per_page=15\`, { headers: ghHeaders(pat) }),
+        fetch(\`https://api.github.com/repos/\${OWNER}/\${REPO}/actions/workflows/run-workflow.yml/runs?per_page=10\`,    { headers: ghHeaders(pat) }),
+        fetch(\`https://api.github.com/repos/\${OWNER}/\${REPO}/actions/workflows/search.yml/runs?per_page=5\`,          { headers: ghHeaders(pat) }),
+      ]);
+      const [d1, d2, d3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
+      const runs = [
+        ...(d1.workflow_runs || []),
+        ...(d2.workflow_runs || []),
+        ...(d3.workflow_runs || []),
+      ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 30);
+      return json({ runs });
+    }
+
     // GET /api/runs — list recent workflow runs
     if (url.pathname === '/api/runs' && request.method === 'GET') {
       const res = await fetch(

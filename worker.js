@@ -206,6 +206,32 @@ const HTML = `<!DOCTYPE html>
   .account-check .acc-name { font-size:13px; font-weight:600; }
   .account-check .acc-sub  { font-size:11px; color:var(--text-muted); }
   .platform-icon { font-size:14px; }
+
+  /* ── Logs tab ── */
+  .log-run { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }
+  .log-run-header { display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; user-select:none; transition:background .15s; }
+  .log-run-header:hover { background:var(--surface2); }
+  .log-run-status { font-size:16px; flex-shrink:0; }
+  .log-run-info { flex:1; min-width:0; }
+  .log-run-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .log-run-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .log-run-badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; flex-shrink:0; }
+  .log-run-badge.success { background:#1a3a2a; color:#3fb950; }
+  .log-run-badge.failure { background:#3a1a1a; color:#f85149; }
+  .log-run-badge.in_progress { background:#1a2a3a; color:#58a6ff; }
+  .log-run-badge.queued    { background:#2a2a1a; color:#d29922; }
+  .log-run-badge.cancelled { background:#2a2a2a; color:#8b949e; }
+  .log-run-chevron { color:var(--text-muted); font-size:12px; flex-shrink:0; transition:transform .2s; }
+  .log-run-chevron.open { transform:rotate(90deg); }
+  .log-run-body { display:none; border-top:1px solid var(--border); padding:12px 16px; }
+  .log-run-body.open { display:block; }
+  .log-step { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); font-size:12px; }
+  .log-step:last-child { border-bottom:none; }
+  .log-step-icon { flex-shrink:0; font-size:14px; }
+  .log-step-name { flex:1; }
+  .log-step-dur { color:var(--text-muted); flex-shrink:0; }
+  .log-gh-link { display:inline-block; margin-top:10px; font-size:12px; color:var(--accent); text-decoration:none; }
+  .log-gh-link:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -224,6 +250,7 @@ const HTML = `<!DOCTYPE html>
 <div class="tab-bar">
   <button class="tab-btn active" id="tab-btn-workflow" onclick="switchTab('workflow')">🎬 Workflow</button>
   <button class="tab-btn" id="tab-btn-campaigns" onclick="switchTab('campaigns')">📅 Campaigns</button>
+  <button class="tab-btn" id="tab-btn-logs" onclick="switchTab('logs')">📋 Logs</button>
 </div>
 
 <div id="tab-workflow" class="container">
@@ -475,6 +502,14 @@ const HTML = `<!DOCTYPE html>
   </div>
 </div>
 </div><!-- /tab-campaigns -->
+
+<div id="tab-logs" class="container" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <h2 style="font-size:16px;font-weight:600">Execution Logs</h2>
+    <button class="btn btn-outline" onclick="loadLogs()">↻ Refresh</button>
+  </div>
+  <div id="logs-list"><p style="color:var(--text-muted);font-size:13px">Loading logs...</p></div>
+</div><!-- /tab-logs -->
 
 <div class="toast hidden" id="toast"></div>
 
@@ -1108,8 +1143,11 @@ function setProductStatus(msg, type) {
 function switchTab(tab) {
   document.getElementById('tab-workflow').style.display  = tab === 'workflow'  ? '' : 'none';
   document.getElementById('tab-campaigns').style.display = tab === 'campaigns' ? '' : 'none';
+  document.getElementById('tab-logs').style.display      = tab === 'logs'      ? '' : 'none';
   document.getElementById('tab-btn-workflow').classList.toggle('active',  tab === 'workflow');
   document.getElementById('tab-btn-campaigns').classList.toggle('active', tab === 'campaigns');
+  document.getElementById('tab-btn-logs').classList.toggle('active',      tab === 'logs');
+  if (tab === 'logs') loadLogs();
 }
 
 // ── Campaigns ──────────────────────────────────────────────────────────────────
@@ -1418,6 +1456,119 @@ async function saveCampaignPhoto(campaignId) {
   return res.ok;
 }
 
+// ── Logs ──────────────────────────────────────────────────────────────────────
+const WORKFLOW_LABELS = {
+  'campaign-runner.yml': '📅 Campaign Runner',
+  'run-workflow.yml':    '🎬 Workflow Run',
+  'search.yml':          '🔍 Search',
+};
+
+function statusIcon(conclusion, status) {
+  if (status === 'in_progress') return '🔄';
+  if (status === 'queued')      return '⏳';
+  if (conclusion === 'success') return '✅';
+  if (conclusion === 'failure') return '❌';
+  if (conclusion === 'cancelled') return '⛔';
+  return '❔';
+}
+
+function stepIcon(conclusion) {
+  if (conclusion === 'success')   return '✅';
+  if (conclusion === 'failure')   return '❌';
+  if (conclusion === 'skipped')   return '⏭';
+  if (conclusion === 'cancelled') return '⛔';
+  return '🔄';
+}
+
+function fmtDuration(startedAt, completedAt) {
+  if (!startedAt || !completedAt) return '';
+  const s = Math.round((new Date(completedAt) - new Date(startedAt)) / 1000);
+  if (s < 60) return \`\${s}s\`;
+  return \`\${Math.floor(s/60)}m \${s%60}s\`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+}
+
+async function loadLogs() {
+  const el = document.getElementById('logs-list');
+  el.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Loading...</p>';
+  try {
+    const res  = await api('/api/logs');
+    const data = await res.json();
+    const runs = data.runs || [];
+    if (!runs.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No runs found.</p>'; return; }
+    el.innerHTML = '';
+    runs.forEach((run, i) => {
+      const wfFile   = (run.path || '').split('/').pop();
+      const label    = WORKFLOW_LABELS[wfFile] || wfFile;
+      const badgeCls = run.conclusion || run.status || 'queued';
+      const badgeTxt = run.conclusion || run.status || 'queued';
+      const dur      = fmtDuration(run.run_started_at, run.updated_at);
+      const div = document.createElement('div');
+      div.className = 'log-run';
+      div.innerHTML = \`
+        <div class="log-run-header" onclick="toggleLogRun(this, \${run.id})">
+          <span class="log-run-status">\${statusIcon(run.conclusion, run.status)}</span>
+          <div class="log-run-info">
+            <div class="log-run-name">\${escHtml(run.display_title || run.name || 'Run #' + run.run_number)}</div>
+            <div class="log-run-meta">\${escHtml(label)} · #\${run.run_number} · \${fmtDate(run.created_at)}\${dur ? ' · ' + dur : ''}</div>
+          </div>
+          <span class="log-run-badge \${badgeCls}">\${badgeTxt}</span>
+          <span class="log-run-chevron">▶</span>
+        </div>
+        <div class="log-run-body" id="log-body-\${run.id}">
+          <p style="color:var(--text-muted);font-size:12px">Loading steps...</p>
+          <a class="log-gh-link" href="\${escHtml(run.html_url)}" target="_blank">↗ Open in GitHub</a>
+        </div>\`;
+      el.appendChild(div);
+    });
+  } catch(e) { el.innerHTML = \`<p style="color:var(--error);font-size:13px">Failed to load logs: \${escHtml(e.message)}</p>\`; }
+}
+
+async function toggleLogRun(header, runId) {
+  const chevron = header.querySelector('.log-run-chevron');
+  const body    = document.getElementById('log-body-' + runId);
+  const isOpen  = body.classList.contains('open');
+  if (isOpen) {
+    body.classList.remove('open');
+    chevron.classList.remove('open');
+    return;
+  }
+  body.classList.add('open');
+  chevron.classList.add('open');
+  if (body.dataset.loaded) return;
+  body.dataset.loaded = '1';
+  try {
+    const res  = await api('/api/run/' + runId);
+    const data = await res.json();
+    const jobs = (data.jobs && data.jobs.jobs) || [];
+    let html = '';
+    jobs.forEach(job => {
+      html += \`<div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text-muted)">\${escHtml(job.name)} — \${job.conclusion || job.status}</div>\`;
+      (job.steps || []).forEach(step => {
+        const dur = fmtDuration(step.started_at, step.completed_at);
+        html += \`<div class="log-step">
+          <span class="log-step-icon">\${stepIcon(step.conclusion)}</span>
+          <span class="log-step-name">\${escHtml(step.name)}</span>
+          <span class="log-step-dur">\${dur}</span>
+        </div>\`;
+      });
+      html += '</div>';
+    });
+    if (!html) html = '<p style="color:var(--text-muted);font-size:12px">No step data available.</p>';
+    const link = body.querySelector('.log-gh-link');
+    body.innerHTML = html;
+    body.appendChild(link || Object.assign(document.createElement('a'), { className:'log-gh-link', href:'#', target:'_blank', textContent:'↗ Open in GitHub' }));
+  } catch(e) {
+    body.innerHTML += \`<p style="color:var(--error);font-size:12px">Failed: \${escHtml(e.message)}</p>\`;
+  }
+}
+
 window.addEventListener('load', () => { loadConfig(); loadProductImage(); loadCampaigns(); });
 </script>
 </body>
@@ -1492,6 +1643,22 @@ export default {
         { method: 'POST', headers: ghHeaders(pat), body: JSON.stringify({ ref: BRANCH }) }
       );
       return json({ status: res.status });
+    }
+
+    // GET /api/logs — list recent runs from all workflows
+    if (url.pathname === '/api/logs' && request.method === 'GET') {
+      const [r1, r2, r3] = await Promise.all([
+        fetch(`https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/campaign-runner.yml/runs?per_page=15`, { headers: ghHeaders(pat) }),
+        fetch(`https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/run-workflow.yml/runs?per_page=10`,    { headers: ghHeaders(pat) }),
+        fetch(`https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/search.yml/runs?per_page=5`,          { headers: ghHeaders(pat) }),
+      ]);
+      const [d1, d2, d3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
+      const runs = [
+        ...(d1.workflow_runs || []),
+        ...(d2.workflow_runs || []),
+        ...(d3.workflow_runs || []),
+      ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 30);
+      return json({ runs });
     }
 
     // GET /api/runs — list recent workflow runs
