@@ -15,12 +15,12 @@
       ],
       "status": "active",
       "created_at": "2026-04-28T07:15:59.993Z",
-      "last_run_at": "2026-04-28T07:55:02.474Z",
-      "next_run_at": "2026-04-28T08:15:32.891Z",
+      "last_run_at": "2026-04-28T08:16:01.831Z",
+      "next_run_at": "2026-04-28T14:16:01.831Z",
       "last_result": {
         "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/c80f1a6b-248e-4983-a7aa-b5a461e2dd4b/generated/f69c166f-a74f-45ce-aa61-f7b24acacdda/generated_video.mp4",
-        "posted_at": "2026-04-28T07:55:02.474Z",
+        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/2551309a-ac4e-4e86-9c11-db5b92e740ca/generated/8b2c8771-3aad-4973-b45b-16d19b5e562c/generated_video.mp4",
+        "posted_at": "2026-04-28T08:16:01.831Z",
         "posts": [
           {
             "username": "Kids",
@@ -28,8 +28,11 @@
               "tiktok"
             ],
             "response": {
-              "success": false,
-              "message": "Provided URL does not point to a video file. Final Content-Type: "
+              "success": true,
+              "message": "Upload queued successfully in the durable worker.",
+              "request_id": "6e721dddd09946e0adc5f4abfdda1a06",
+              "total_platforms": 1,
+              "job_id": "54a8733a34864d4bbd7b632a054a7bf4"
             }
           }
         ]
