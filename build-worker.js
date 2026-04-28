@@ -117,6 +117,18 @@ export default {
       return json({ run, jobs });
     }
 
+    // GET /api/job-logs/:job_id — fetch raw console output for a job
+    const jobLogsMatch = url.pathname.match(/^\\/api\\/job-logs\\/(\\d+)$/);
+    if (jobLogsMatch && request.method === 'GET') {
+      const jobId = jobLogsMatch[1];
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/actions/jobs/\${jobId}/logs\`,
+        { headers: ghHeaders(pat), redirect: 'follow' }
+      );
+      const text = await res.text();
+      return new Response(text, { headers: { 'Content-Type': 'text/plain' } });
+    }
+
     // GET /api/result — get latest-result.json from GitHub
     if (url.pathname === '/api/result' && request.method === 'GET') {
       const res = await fetch(

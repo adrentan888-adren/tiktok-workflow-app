@@ -1611,11 +1611,7 @@ async function toggleLogRun(header, runId) {
   const chevron = header.querySelector('.log-run-chevron');
   const body    = document.getElementById('log-body-' + runId);
   const isOpen  = body.classList.contains('open');
-  if (isOpen) {
-    body.classList.remove('open');
-    chevron.classList.remove('open');
-    return;
-  }
+  if (isOpen) { body.classList.remove('open'); chevron.classList.remove('open'); return; }
   body.classList.add('open');
   chevron.classList.add('open');
   if (body.dataset.loaded) return;
@@ -1626,7 +1622,7 @@ async function toggleLogRun(header, runId) {
     const jobs = (data.jobs && data.jobs.jobs) || [];
     let html = '';
     jobs.forEach(job => {
-      html += \`<div style="margin-bottom:10px">
+      html += \`<div style="margin-bottom:8px">
         <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text-muted)">\${escHtml(job.name)} — \${job.conclusion || job.status}</div>\`;
       (job.steps || []).forEach(step => {
         const dur = fmtDuration(step.started_at, step.completed_at);
@@ -1634,16 +1630,34 @@ async function toggleLogRun(header, runId) {
           <span class="log-step-icon">\${stepIcon(step.conclusion)}</span>
           <span class="log-step-name">\${escHtml(step.name)}</span>
           <span class="log-step-dur">\${dur}</span>
+          \${step.conclusion !== 'skipped' ? \`<button onclick="loadJobLogs(\${job.id},'log-output-\${runId}')" style="font-size:10px;padding:1px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer">📋 View Logs</button>\` : ''}
         </div>\`;
       });
       html += '</div>';
     });
     if (!html) html = '<p style="color:var(--text-muted);font-size:12px">No step data available.</p>';
-    const link = body.querySelector('.log-gh-link');
+    html += \`<div id="log-output-\${runId}" style="display:none;margin-top:10px"></div>\`;
+    html += \`<a class="log-gh-link" href="\${escHtml((data.run||{}).html_url||'#')}" target="_blank">↗ Open in GitHub</a>\`;
     body.innerHTML = html;
-    body.appendChild(link || Object.assign(document.createElement('a'), { className:'log-gh-link', href:'#', target:'_blank', textContent:'↗ Open in GitHub' }));
   } catch(e) {
     body.innerHTML += \`<p style="color:var(--error);font-size:12px">Failed: \${escHtml(e.message)}</p>\`;
+  }
+}
+
+async function loadJobLogs(jobId, outputId) {
+  const el = document.getElementById(outputId);
+  el.style.display = 'block';
+  el.innerHTML = '<p style="font-size:12px;color:var(--text-muted)">Loading logs...</p>';
+  try {
+    const res  = await api('/api/job-logs/' + jobId);
+    const text = await res.text();
+    // Strip ANSI codes and GitHub timestamp prefixes, keep meaningful lines
+    const lines = text.split('\\n')
+      .map(l => l.replace(/^\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z\\s+/, '').replace(/\\x1b\\[[0-9;]*m/g, ''))
+      .filter(l => l.trim());
+    el.innerHTML = \`<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;line-height:1.6;overflow-x:auto;white-space:pre-wrap;max-height:500px;overflow-y:auto">\${escHtml(lines.join('\\n'))}</pre>\`;
+  } catch(e) {
+    el.innerHTML = \`<p style="color:var(--error);font-size:12px">Failed: \${escHtml(e.message)}</p>\`;
   }
 }
 
@@ -1759,6 +1773,18 @@ export default {
       ]);
       const [run, jobs] = await Promise.all([runRes.json(), jobsRes.json()]);
       return json({ run, jobs });
+    }
+
+    // GET /api/job-logs/:job_id — fetch raw console output for a job
+    const jobLogsMatch = url.pathname.match(/^\/api\/job-logs\/(\d+)$/);
+    if (jobLogsMatch && request.method === 'GET') {
+      const jobId = jobLogsMatch[1];
+      const res = await fetch(
+        `https://api.github.com/repos/${OWNER}/${REPO}/actions/jobs/${jobId}/logs`,
+        { headers: ghHeaders(pat), redirect: 'follow' }
+      );
+      const text = await res.text();
+      return new Response(text, { headers: { 'Content-Type': 'text/plain' } });
     }
 
     // GET /api/result — get latest-result.json from GitHub
