@@ -424,13 +424,6 @@ const HTML = `<!DOCTYPE html>
             <option value="168">Every week</option>
           </select>
         </div>
-        <div class="field">
-          <label>Max Videos to Search</label>
-          <select id="campaign-max-videos">
-            <option value="5" selected>5 videos</option>
-            <option value="10">10 videos</option>
-          </select>
-        </div>
         <div class="field full">
           <label>Caption / Title</label>
           <input type="text" id="campaign-caption" placeholder="e.g. Check this out! #viral #trending #ai">
@@ -1200,7 +1193,6 @@ async function openCampaignForm(campaignId) {
     document.getElementById('campaign-name').value = c.name;
     document.getElementById('campaign-keyword').value = c.keyword;
     document.getElementById('campaign-interval').value = String(c.interval_hours || 24);
-    document.getElementById('campaign-max-videos').value = String(c.max_videos || 5);
     document.getElementById('campaign-caption').value = c.caption || '';
     renderAccountCheckboxes(c.accounts || []);
   }
@@ -1223,7 +1215,6 @@ async function saveCampaign() {
   const name     = document.getElementById('campaign-name').value.trim();
   const keyword  = document.getElementById('campaign-keyword').value.trim();
   const interval = parseInt(document.getElementById('campaign-interval').value) || 24;
-  const maxV     = parseInt(document.getElementById('campaign-max-videos').value) || 5;
   const caption  = document.getElementById('campaign-caption').value.trim();
   const accounts = getCheckedAccounts();
   const editId   = document.getElementById('campaign-edit-id').value;
@@ -1242,11 +1233,11 @@ async function saveCampaign() {
 
     if (editId) {
       const idx = campaigns.findIndex(c => c.id === editId);
-      if (idx >= 0) Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, max_videos: maxV, caption, accounts });
+      if (idx >= 0) Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, caption, accounts });
     } else {
       campaigns.push({
         id: 'c' + Date.now(),
-        name, keyword, interval_hours: interval, max_videos: maxV, caption, accounts,
+        name, keyword, interval_hours: interval, caption, accounts,
         status: 'active',
         created_at: new Date().toISOString(),
         last_run_at: null,
