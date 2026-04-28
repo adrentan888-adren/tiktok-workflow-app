@@ -1271,9 +1271,9 @@ async function saveCampaign() {
     const campaigns = obj.campaigns || [];
     const sha  = data.sha;
 
-    if (editId) {
-      const idx = campaigns.findIndex(c => c.id === editId);
-      if (idx >= 0) Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, accounts });
+    const idx = campaigns.findIndex(c => c.id === editId);
+    if (idx >= 0) {
+      Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, accounts });
     } else {
       campaigns.push({
         id: editId,
@@ -1281,7 +1281,7 @@ async function saveCampaign() {
         status: 'active',
         created_at: new Date().toISOString(),
         last_run_at: null,
-        next_run_at: new Date().toISOString(),  // run on next check
+        next_run_at: new Date().toISOString(),
         last_result: null
       });
     }
