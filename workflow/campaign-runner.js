@@ -94,17 +94,17 @@ async function generateVideo(prompt, modelOverrides = {}) {
     const model    = modelOverrides.model    || config.seedance.model    || 'grok-imagine/text-to-video';
     const duration = modelOverrides.duration || config.seedance.duration || 10;
     // Always force TikTok dimensions: 9:16 vertical
-    // Grok Aurora max supported resolution is 720p on Kie.ai; Wan supports 1080p
-    const isGrok   = model.startsWith('grok');
-    const isWan    = model.startsWith('wan');
-    const isSora   = model.startsWith('sora');
-    const ASPECT   = '9:16';
-    const RES      = isGrok ? '720p' : '1080p';   // TikTok: 720×1280 or 1080×1920
+    const isGrok     = model.startsWith('grok');
+    const isSeedance = model.startsWith('bytedance/seedance');
+    const isSora     = model.startsWith('sora');
+    const ASPECT = '9:16';
+    // Grok max resolution on Kie.ai is 720p; Seedance 2.0 supports 1080p
+    const RES = isGrok ? '720p' : '1080p';
     let input;
     if (isGrok) {
         input = { prompt, duration: String(Math.min(duration, 10)), resolution: RES, aspect_ratio: ASPECT, mode: 'normal' };
-    } else if (isWan) {
-        input = { prompt, duration: String(Math.min(duration, 15)), resolution: RES, aspect_ratio: ASPECT };
+    } else if (isSeedance) {
+        input = { prompt, duration: Math.min(duration, 15), resolution: RES, aspect_ratio: ASPECT, generate_audio: true };
     } else if (isSora) {
         input = { prompt, n_frames: String(duration), aspect_ratio: 'portrait' };
     } else {
@@ -263,9 +263,10 @@ async function runCampaign(campaign) {
     log(`\n[STEP 5] Generate AI Video`);
     const modelOverrides = { model: campaign.video_model, duration: campaign.video_duration };
     const _m = modelOverrides.model || config.seedance.model || '';
+    const _res = _m.startsWith('grok') ? '720p' : '1080p';
     log(`  gen_model     : ${_m}`);
     log(`  gen_duration  : ${modelOverrides.duration || config.seedance.duration}s`);
-    log(`  resolution    : ${_m.startsWith('grok') ? '720p' : '1080p'} (9:16 TikTok)`);
+    log(`  resolution    : ${_res} | aspect: 9:16 (TikTok vertical)`);
 
     const videoUrl = await generateVideoWithRetry(prompt, modelOverrides);
     if (!videoUrl) throw new Error('No video URL returned');

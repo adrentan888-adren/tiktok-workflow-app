@@ -481,9 +481,9 @@ const HTML = `<!DOCTYPE html>
               </div>
             </label>
             <label class="model-card">
-              <input type="radio" name="campaign_model" value="wan/2-6-text-to-video" id="model-seedance" onchange="onCampaignModelChange()">
+              <input type="radio" name="campaign_model" value="bytedance/seedance-2" id="model-seedance" onchange="onCampaignModelChange()">
               <div>
-                <div class="model-card-name">🌊 Wan 2.6</div>
+                <div class="model-card-name">🎬 Seedance 2.0</div>
                 <div class="model-card-sub">Max 15s · ~$0.03/s</div>
               </div>
             </label>
@@ -1183,8 +1183,8 @@ function switchTab(tab) {
 
 // ── Campaign model / pricing ───────────────────────────────────────────────────
 const CAMPAIGN_MODELS = {
-  'grok-imagine/text-to-video': { label: 'Grok Aurora', maxDuration: 10, pricePerSec: 0.05, flatPrice: null },
-  'wan/2-6-text-to-video':      { label: 'Wan 2.6',     maxDuration: 15, pricePerSec: 0.03, flatPrice: null },
+  'grok-imagine/text-to-video': { label: 'Grok Aurora',  maxDuration: 10, pricePerSec: 0.05, flatPrice: null },
+  'bytedance/seedance-2':       { label: 'Seedance 2.0', maxDuration: 15, pricePerSec: 0.03, flatPrice: null },
 };
 
 function getSelectedModel() {
