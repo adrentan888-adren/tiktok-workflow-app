@@ -54,6 +54,15 @@ async function analyzeVideo(videoBuffer) {
     const frames = extractFrames(videoBuffer);
     const imageBlocks = frames.map(b64 => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } }));
 
+    // Check for campaign-specific product photo
+    const photoPath = path.join(__dirname, 'photos', campaign.id + '.jpg');
+    if (fs.existsSync(photoPath)) {
+        const productB64 = fs.readFileSync(photoPath).toString('base64');
+        imageBlocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: productB64 } });
+        prompt += '\n\nIMPORTANT: The last image provided is a product photo. Rewrite each segment\'s visual_action to feature this product prominently, replacing any similar products visible in the video frames with this exact product. Describe the product\'s specific appearance — shape, colour, branding, texture, and any visible text — in precise detail within every visual_action.';
+        log(`  Product photo: included for campaign ${campaign.id}`);
+    }
+
     for (let attempt = 1; attempt <= 3; attempt++) {
         if (attempt > 1) { log(`  Retry ${attempt}...`); await sleep(60000); }
         const res  = await fetch('https://api.kie.ai/claude/v1/messages', {

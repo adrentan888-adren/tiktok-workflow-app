@@ -172,6 +172,35 @@ export default {
       return json({ ready: true, videos: results.videos, keyword: results.keyword });
     }
 
+    // GET /api/campaign-photo/:id — get per-campaign product photo
+    const campaignPhotoMatch = url.pathname.match(/^\\/api\\/campaign-photo\\/([\\w-]+)$/);
+    if (campaignPhotoMatch && request.method === 'GET') {
+      const cid = campaignPhotoMatch[1];
+      const res = await fetch(\`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/photos/\${cid}.jpg?t=\${Date.now()}\`, { headers: ghHeaders(pat) });
+      if (res.status === 404) return json({ exists: false });
+      const data = await res.json();
+      return json({ exists: true, content: data.content, sha: data.sha });
+    }
+
+    // PUT /api/campaign-photo/:id — save per-campaign product photo
+    if (campaignPhotoMatch && request.method === 'PUT') {
+      const cid = campaignPhotoMatch[1];
+      const body = await request.json();
+      const payload = { message: 'campaign-photo: update', content: body.content };
+      if (body.sha) payload.sha = body.sha;
+      const res = await fetch(\`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/photos/\${cid}.jpg\`, { method: 'PUT', headers: ghHeaders(pat), body: JSON.stringify(payload) });
+      const data = await res.json();
+      return json(data, res.status);
+    }
+
+    // DELETE /api/campaign-photo/:id — remove per-campaign product photo
+    if (campaignPhotoMatch && request.method === 'DELETE') {
+      const cid = campaignPhotoMatch[1];
+      const body = await request.json();
+      const res = await fetch(\`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/photos/\${cid}.jpg\`, { method: 'DELETE', headers: ghHeaders(pat), body: JSON.stringify({ message: 'campaign-photo: remove', sha: body.sha }) });
+      return json({ deleted: res.ok }, res.status);
+    }
+
     // GET /api/campaigns — fetch campaigns.json from GitHub
     if (url.pathname === '/api/campaigns' && request.method === 'GET') {
       const res = await fetch(

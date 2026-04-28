@@ -436,8 +436,22 @@
           </select>
         </div>
         <div class="field full">
-          <label>Caption / Title</label>
-          <input type="text" id="campaign-caption" placeholder="e.g. Check this out! #viral #trending #ai">
+          <label>Product Photo <span style="font-weight:400;color:var(--text-muted)">(optional — used to replace product in AI-generated video)</span></label>
+          <input type="file" id="campaign-product-file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="onCampaignProductSelected(event)">
+          <div class="product-drop-area" id="campaign-product-drop" onclick="document.getElementById('campaign-product-file').click()" style="min-height:80px">
+            <div id="campaign-product-placeholder">
+              <div style="font-size:22px;margin-bottom:4px">📷</div>
+              <div style="font-size:13px;font-weight:600">Click to upload product photo</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">JPG · PNG · WebP</div>
+            </div>
+            <div id="campaign-product-preview-wrap" style="display:none">
+              <img id="campaign-product-preview" alt="Product" style="max-height:100px;max-width:100%;border-radius:6px;display:block;margin:0 auto">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-outline" id="btn-clear-campaign-product" style="display:none;font-size:12px" onclick="clearCampaignProduct(event)">✕ Remove Photo</button>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Caption is copied automatically from the TikTok video description.</div>
         </div>
         <div class="field full">
           <label>Post To (select accounts)</label>
@@ -1193,11 +1207,11 @@ async function openCampaignForm(campaignId) {
 
   if (!campaignId) {
     document.getElementById('campaign-form-title').textContent = 'New Campaign';
-    document.getElementById('campaign-edit-id').value = '';
+    document.getElementById('campaign-edit-id').value = 'c' + Date.now();
     document.getElementById('campaign-name').value = '';
     document.getElementById('campaign-keyword').value = '';
     document.getElementById('campaign-interval').value = '24';
-    document.getElementById('campaign-caption').value = '';
+    clearCampaignProductUI();
     renderAccountCheckboxes([]);
   } else {
     // Load existing campaign data
@@ -1212,7 +1226,14 @@ async function openCampaignForm(campaignId) {
     document.getElementById('campaign-name').value = c.name;
     document.getElementById('campaign-keyword').value = c.keyword;
     document.getElementById('campaign-interval').value = String(c.interval_hours || 24);
-    document.getElementById('campaign-caption').value = c.caption || '';
+    clearCampaignProductUI();
+    if (c.has_product_photo) {
+      document.getElementById('campaign-product-placeholder').style.display = 'none';
+      document.getElementById('campaign-product-preview-wrap').style.display = '';
+      document.getElementById('btn-clear-campaign-product').style.display = '';
+      const pr = await api('/api/campaign-photo/' + c.id);
+      if (pr.ok) { const pd = await pr.json(); if (pd.content) document.getElementById('campaign-product-preview').src = 'data:image/jpeg;base64,' + pd.content.replace(/\n/g,''); }
+    }
     renderAccountCheckboxes(c.accounts || []);
   }
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1234,7 +1255,6 @@ async function saveCampaign() {
   const name     = document.getElementById('campaign-name').value.trim();
   const keyword  = document.getElementById('campaign-keyword').value.trim();
   const interval = parseInt(document.getElementById('campaign-interval').value) || 24;
-  const caption  = document.getElementById('campaign-caption').value.trim();
   const accounts = getCheckedAccounts();
   const editId   = document.getElementById('campaign-edit-id').value;
 
@@ -1252,11 +1272,11 @@ async function saveCampaign() {
 
     if (editId) {
       const idx = campaigns.findIndex(c => c.id === editId);
-      if (idx >= 0) Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, caption, accounts });
+      if (idx >= 0) Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, accounts });
     } else {
       campaigns.push({
-        id: 'c' + Date.now(),
-        name, keyword, interval_hours: interval, caption, accounts,
+        id: editId,
+        name, keyword, interval_hours: interval, accounts,
         status: 'active',
         created_at: new Date().toISOString(),
         last_run_at: null,
@@ -1272,6 +1292,21 @@ async function saveCampaign() {
       body: JSON.stringify({ message: editId ? 'campaign: update' : 'campaign: create', content, sha })
     });
     if (!putRes.ok) throw new Error('HTTP ' + putRes.status);
+
+    // Save product photo if one was selected
+    if (pendingCampaignProductB64) {
+      const photoSaved = await saveCampaignPhoto(editId);
+      if (photoSaved) {
+        // Mark campaign as having a photo
+        const c2 = (obj.campaigns || []).find(x => x.id === editId) || campaigns.find(x => x.id === editId);
+        if (c2) c2.has_product_photo = true;
+        const content2 = btoa(JSON.stringify({ campaigns }, null, 2));
+        const sha2Res = await api('/api/campaigns');
+        const sha2Data = await sha2Res.json();
+        await api('/api/campaigns', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'campaign: add photo flag', content: content2, sha: sha2Data.sha }) });
+      }
+      pendingCampaignProductB64 = null;
+    }
 
     toast(editId ? 'Campaign updated ✓' : 'Campaign created ✓', 'success');
     closeCampaignForm();
@@ -1307,6 +1342,58 @@ async function deleteCampaign(id) {
     toast('Campaign deleted', 'success');
     await loadCampaigns();
   } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ── Campaign product photo ─────────────────────────────────────────────────────
+let pendingCampaignProductB64 = null;
+
+function onCampaignProductSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  compressImage(file).then(b64 => {
+    pendingCampaignProductB64 = b64;
+    document.getElementById('campaign-product-placeholder').style.display = 'none';
+    document.getElementById('campaign-product-preview-wrap').style.display = '';
+    document.getElementById('campaign-product-preview').src = 'data:image/jpeg;base64,' + b64;
+    document.getElementById('btn-clear-campaign-product').style.display = '';
+  }).catch(err => toast('Image error: ' + err.message, 'error'));
+}
+
+function clearCampaignProductUI() {
+  pendingCampaignProductB64 = null;
+  document.getElementById('campaign-product-placeholder').style.display = '';
+  document.getElementById('campaign-product-preview-wrap').style.display = 'none';
+  document.getElementById('campaign-product-preview').src = '';
+  document.getElementById('btn-clear-campaign-product').style.display = 'none';
+  const fi = document.getElementById('campaign-product-file');
+  if (fi) fi.value = '';
+}
+
+async function clearCampaignProduct(e) {
+  e.stopPropagation();
+  const id = document.getElementById('campaign-edit-id').value;
+  if (id && !pendingCampaignProductB64) {
+    // Delete from GitHub
+    const gr = await api('/api/campaign-photo/' + id);
+    if (gr.ok) {
+      const gd = await gr.json();
+      if (gd.sha) await api('/api/campaign-photo/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sha: gd.sha }) });
+    }
+  }
+  clearCampaignProductUI();
+}
+
+async function saveCampaignPhoto(campaignId) {
+  if (!pendingCampaignProductB64) return false;
+  // Check for existing sha
+  let sha = null;
+  const gr = await api('/api/campaign-photo/' + campaignId);
+  if (gr.ok) { const gd = await gr.json(); sha = gd.sha || null; }
+  const res = await api('/api/campaign-photo/' + campaignId, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: pendingCampaignProductB64, sha })
+  });
+  return res.ok;
 }
 
 window.addEventListener('load', () => { loadConfig(); loadProductImage(); loadCampaigns(); });
