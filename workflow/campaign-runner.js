@@ -204,62 +204,83 @@ async function postToSocialMedia(videoUrl, campaign, videoCaption) {
 
 // ── Run one campaign ──────────────────────────────────────────────────────────
 async function runCampaign(campaign) {
-    log(`\n========================================`);
-    log(`Campaign: "${campaign.name}" | ID: ${campaign.id}`);
-    log(`Keyword: "${campaign.keyword}" | Accounts: ${(campaign.accounts||[]).map(a=>a.username+'/'+a.platform).join(', ')}`);
-    log(`========================================`);
+    const sep = '─'.repeat(60);
+    log(`\n${sep}`);
+    log(`▶ CAMPAIGN START`);
+    log(`  name      : ${campaign.name}`);
+    log(`  id        : ${campaign.id}`);
+    log(`  keyword   : ${campaign.keyword}`);
+    log(`  model     : ${campaign.video_model || config.seedance.model}`);
+    log(`  duration  : ${campaign.video_duration || config.seedance.duration}s`);
+    log(`  accounts  : ${(campaign.accounts||[]).map(a=>`${a.username}/${a.platform}`).join(', ')}`);
+    log(sep);
 
-    // Step 1: Search TikTok via tikwm
-    log('Step 1 — Searching TikTok...');
+    // ── Step 1: Search TikTok ────────────────────────────────────────────────
+    log(`\n[STEP 1] TikTok Search`);
     const maxVideos = campaign.max_videos || 5;
     const searchRes = await fetch(`https://www.tikwm.com/api/feed/search?keywords=${encodeURIComponent(campaign.keyword)}&count=${maxVideos}&cursor=0&hd=1`);
     const searchData = await searchRes.json();
-    log(`  tikwm response code: ${searchData.code} | videos found: ${(searchData.data && searchData.data.videos || []).length}`);
+    log(`  tikwm_code    : ${searchData.code}`);
+    log(`  videos_found  : ${((searchData.data && searchData.data.videos) || []).length}`);
     if (searchData.code !== 0) throw new Error(`tikwm search error: ${searchData.msg}`);
     const rawVideos = (searchData.data && searchData.data.videos) || [];
     if (rawVideos.length === 0) throw new Error('No videos found for keyword: ' + campaign.keyword);
-
-    // Pick video with highest play count
     const video = rawVideos.sort((a, b) => (b.play_count || 0) - (a.play_count || 0))[0];
     const videoCaption = (video.title || video.desc || '').trim();
-    log(`  Selected: @${video.author && video.author.unique_id} | plays: ${video.play_count} | caption: ${videoCaption.substring(0, 80)}`);
+    log(`  selected_user : @${video.author && video.author.unique_id}`);
+    log(`  play_count    : ${video.play_count}`);
+    log(`  caption       : ${videoCaption.substring(0, 100)}`);
 
-    // Step 2: Get HD download URL
-    log('Step 2 — Getting HD URL...');
-    const tikwmRes  = await fetch('https://www.tikwm.com/api/', {
+    // ── Step 2: HD URL ───────────────────────────────────────────────────────
+    log(`\n[STEP 2] Get HD Download URL`);
+    const tikwmRes = await fetch('https://www.tikwm.com/api/', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `url=${encodeURIComponent(video.play || '')}&hd=1`
     });
     const tikwmData = await tikwmRes.json();
     const downloadUrl = (tikwmData.data && (tikwmData.data.hdplay || tikwmData.data.play)) || video.play || video.hdplay;
-    log(`  Download URL: ${(downloadUrl || 'NOT FOUND').substring(0, 100)}`);
+    log(`  download_url  : ${(downloadUrl || 'NOT FOUND').substring(0, 120)}`);
     if (!downloadUrl) throw new Error('Could not resolve download URL');
 
-    // Step 3: Download video
-    log('Step 3 — Downloading video...');
+    // ── Step 3: Download ─────────────────────────────────────────────────────
+    log(`\n[STEP 3] Download TikTok Video`);
     const dlRes = await fetch(downloadUrl);
-    log(`  Download HTTP status: ${dlRes.status}`);
+    log(`  http_status   : ${dlRes.status}`);
     if (!dlRes.ok) throw new Error(`Download failed: ${dlRes.status}`);
     const videoBuffer = Buffer.from(await dlRes.arrayBuffer());
-    log(`  Downloaded: ${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    log(`  size_mb       : ${(videoBuffer.length / 1024 / 1024).toFixed(2)}`);
 
-    // Step 4: AI Analysis
-    log('Step 4 — AI analysis...');
+    // ── Step 4: AI Analysis ──────────────────────────────────────────────────
+    log(`\n[STEP 4] AI Video Analysis`);
+    log(`  claude_model  : ${config.analysis_model || 'claude-sonnet-4-6'}`);
     const prompt = await analyzeVideo(videoBuffer, campaign);
-    log(`  Analysis prompt (${prompt.length} chars): ${prompt.substring(0, 200)}...`);
+    log(`  prompt_chars  : ${prompt.length}`);
+    log(`  prompt_preview: ${prompt.substring(0, 200)}`);
 
-    // Step 5: Generate video
-    log('Step 5 — Generating video...');
+    // ── Step 5: Generate Video ───────────────────────────────────────────────
+    log(`\n[STEP 5] Generate AI Video`);
     const modelOverrides = { model: campaign.video_model, duration: campaign.video_duration };
-    log(`  Model: ${modelOverrides.model || config.seedance.model} | Duration: ${modelOverrides.duration || config.seedance.duration}s | Resolution: ${config.seedance.resolution}`);
+    log(`  gen_model     : ${modelOverrides.model || config.seedance.model}`);
+    log(`  gen_duration  : ${modelOverrides.duration || config.seedance.duration}s`);
+    log(`  resolution    : ${config.seedance.resolution}`);
     const videoUrl = await generateVideoWithRetry(prompt, modelOverrides);
     if (!videoUrl) throw new Error('No video URL returned');
-    log(`  ✅ Generated video URL: ${videoUrl}`);
+    log(`  VIDEO_URL     : ${videoUrl}`);
 
-    // Step 6: Post to social media
-    log('Step 6 — Posting to social media...');
+    // ── Step 6: Post to Social ───────────────────────────────────────────────
+    log(`\n[STEP 6] Post to Social Media`);
     const postResults = await postToSocialMedia(videoUrl, campaign, videoCaption);
-    log(`  Post results: ${JSON.stringify(postResults)}`);
+    postResults.forEach(r => {
+        log(`  platform      : ${r.platforms.join(', ')} | profile: ${r.username}`);
+        log(`  upload_result : ${JSON.stringify(r.response)}`);
+    });
+
+    log(`\n${sep}`);
+    log(`✅ CAMPAIGN DONE`);
+    log(`  VIDEO_URL   : ${videoUrl}`);
+    const postIds = postResults.map(r => `${r.platforms.join('+')}=${r.response.job_id||r.response.request_id||'?'}`).join(', ');
+    log(`  POST_JOB_IDS: ${postIds}`);
+    log(sep);
 
     return { videoUrl, postResults };
 }
