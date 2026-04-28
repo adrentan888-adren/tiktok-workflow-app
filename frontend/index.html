@@ -180,6 +180,26 @@
     .form-grid .full { grid-column: 1; }
     .keyword-row { flex-direction: column; }
   }
+  /* ── Campaigns ── */
+  .campaign-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
+  .campaign-card-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .campaign-card-name { font-weight:600; font-size:15px; flex:1; }
+  .campaign-badge { display:inline-flex; align-items:center; gap:4px; background:var(--surface-alt); border:1px solid var(--border); border-radius:4px; padding:2px 7px; font-size:11px; }
+  .campaign-badge.active { background:#d1fae5; border-color:#6ee7b7; color:#065f46; }
+  .campaign-badge.paused { background:#fef3c7; border-color:#fcd34d; color:#92400e; }
+  .campaign-meta { font-size:12px; color:var(--text-muted); display:flex; gap:14px; flex-wrap:wrap; }
+  .campaign-result { font-size:12px; padding:6px 8px; border-radius:4px; }
+  .campaign-result.ok  { background:#d1fae5; color:#065f46; }
+  .campaign-result.err { background:#fee2e2; color:#991b1b; }
+  .campaign-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+  .account-check { display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 12px; cursor:pointer; transition:border-color .2s; }
+  .account-check:hover { border-color:var(--accent); }
+  .account-check input[type=checkbox] { width:16px; height:16px; cursor:pointer; }
+  .account-check img { width:32px; height:32px; border-radius:50%; object-fit:cover; }
+  .account-check .acc-info { display:flex; flex-direction:column; }
+  .account-check .acc-name { font-size:13px; font-weight:600; }
+  .account-check .acc-sub  { font-size:11px; color:var(--text-muted); }
+  .platform-icon { font-size:14px; }
 </style>
 </head>
 <body>
@@ -369,6 +389,70 @@
     </div>
   </div>
 
+</div>
+
+<!-- ── Campaigns ────────────────────────────────────────────────────────────── -->
+<div class="card" id="campaigns-card">
+  <div class="card-header" onclick="toggleCard(this)">
+    <span>📅 Campaigns — Auto-generate &amp; Post</span>
+    <button class="btn btn-blue" style="margin-left:auto" onclick="event.stopPropagation(); openCampaignForm(null)">➕ New Campaign</button>
+  </div>
+  <div class="card-body">
+
+    <!-- Create / Edit form -->
+    <div id="campaign-form" style="display:none; background:var(--surface-alt); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px;">
+      <div style="font-weight:600; margin-bottom:12px;" id="campaign-form-title">New Campaign</div>
+      <input type="hidden" id="campaign-edit-id">
+      <div class="form-grid">
+        <div class="field">
+          <label>Campaign Name</label>
+          <input type="text" id="campaign-name" placeholder="e.g. Daily Cat Videos">
+        </div>
+        <div class="field">
+          <label>Keyword</label>
+          <input type="text" id="campaign-keyword" placeholder="e.g. washing machine">
+        </div>
+        <div class="field">
+          <label>Post Every</label>
+          <select id="campaign-interval">
+            <option value="6">Every 6 hours</option>
+            <option value="12">Every 12 hours</option>
+            <option value="24" selected>Every 24 hours (daily)</option>
+            <option value="48">Every 2 days</option>
+            <option value="72">Every 3 days</option>
+            <option value="168">Every week</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Max Videos to Search</label>
+          <select id="campaign-max-videos">
+            <option value="5" selected>5 videos</option>
+            <option value="10">10 videos</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Caption / Title</label>
+          <input type="text" id="campaign-caption" placeholder="e.g. Check this out! #viral #trending #ai">
+        </div>
+        <div class="field full">
+          <label>Post To (select accounts)</label>
+          <div id="campaign-accounts-list" style="display:flex; flex-wrap:wrap; gap:10px; padding:8px 0;">
+            <span style="color:var(--text-muted); font-size:13px;">Loading accounts...</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <button class="btn btn-primary" onclick="saveCampaign()">💾 Save Campaign</button>
+        <button class="btn btn-outline" onclick="closeCampaignForm()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Campaign list -->
+    <div id="campaign-list" style="display:flex; flex-direction:column; gap:10px;">
+      <div style="color:var(--text-muted); font-size:13px; padding:8px 0;">Loading campaigns...</div>
+    </div>
+
+  </div>
 </div>
 
 <div class="toast hidden" id="toast"></div>
@@ -999,7 +1083,222 @@ function setProductStatus(msg, type) {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
-window.addEventListener('load', () => { loadConfig(); loadProductImage(); });
+// ── Campaigns ──────────────────────────────────────────────────────────────────
+let campaignsSha       = null;
+let socialAccounts     = [];   // [{username, platform, display_name, handle, img}]
+
+const PLATFORM_ICONS = { tiktok:'🎵', youtube:'▶️', instagram:'📸', facebook:'👤', twitter:'🐦', linkedin:'💼', threads:'🧵', pinterest:'📌', bluesky:'🦋', reddit:'🤖' };
+
+async function loadCampaigns() {
+  try {
+    const res  = await api('/api/campaigns');
+    if (!res.ok) { renderCampaignList([]); return; }
+    const data = await res.json();
+    const obj  = JSON.parse(atob(data.content.replace(/\n/g, '')));
+    campaignsSha = data.sha;
+    renderCampaignList(obj.campaigns || []);
+  } catch(e) { renderCampaignList([]); }
+}
+
+async function loadSocialAccounts() {
+  try {
+    const res  = await api('/api/social-accounts');
+    if (!res.ok) return;
+    const data = await res.json();
+    socialAccounts = [];
+    for (const profile of (data.profiles || [])) {
+      for (const [platform, info] of Object.entries(profile.social_accounts || {})) {
+        if (!info || typeof info !== 'object') continue;
+        socialAccounts.push({ username: profile.username, platform, display_name: info.display_name || profile.username, handle: info.handle || '', img: info.social_images || '' });
+      }
+    }
+  } catch(e) {}
+}
+
+function renderCampaignList(campaigns) {
+  const el = document.getElementById('campaign-list');
+  if (!campaigns.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">No campaigns yet. Click ➕ New Campaign to create one.</div>'; return; }
+  el.innerHTML = '';
+  campaigns.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'campaign-card';
+    const accounts = (c.accounts || []).map(a => `<span class="campaign-badge">${PLATFORM_ICONS[a.platform]||'📱'} ${a.handle || a.platform} <span style="color:var(--text-muted)">@${a.username}</span></span>`).join(' ');
+    const lastRun  = c.last_run_at  ? new Date(c.last_run_at).toLocaleString()  : 'Never';
+    const nextRun  = c.next_run_at  ? new Date(c.next_run_at).toLocaleString()  : 'On next check';
+    const resultHtml = c.last_result
+      ? c.last_result.success
+        ? `<div class="campaign-result ok">✅ Last run succeeded · <a href="${escHtml(c.last_result.videoUrl||'#')}" target="_blank">View video</a></div>`
+        : `<div class="campaign-result err">❌ Last run failed: ${escHtml(c.last_result.error||'unknown')}</div>`
+      : '';
+    div.innerHTML = `
+      <div class="campaign-card-header">
+        <div class="campaign-card-name">${escHtml(c.name)}</div>
+        <span class="campaign-badge ${c.status==='active'?'active':'paused'}">${c.status==='active'?'● Active':'⏸ Paused'}</span>
+      </div>
+      <div class="campaign-meta">
+        <span>🔍 ${escHtml(c.keyword)}</span>
+        <span>🕐 Every ${c.interval_hours}h</span>
+        <span>📅 Last: ${lastRun}</span>
+        <span>⏭ Next: ${nextRun}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${accounts}</div>
+      ${resultHtml}
+      <div class="campaign-actions">
+        <button class="btn btn-outline" style="font-size:12px" onclick="openCampaignForm('${c.id}')">✏️ Edit</button>
+        <button class="btn btn-outline" style="font-size:12px" onclick="toggleCampaignStatus('${c.id}')">${c.status==='active'?'⏸ Pause':'▶ Resume'}</button>
+        <button class="btn btn-outline" style="font-size:12px;color:#e53e3e;border-color:#e53e3e" onclick="deleteCampaign('${c.id}')">🗑 Delete</button>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function renderAccountCheckboxes(selectedAccounts) {
+  const el = document.getElementById('campaign-accounts-list');
+  if (!socialAccounts.length) { el.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">No connected accounts found. Connect accounts at upload-post.com.</span>'; return; }
+  el.innerHTML = '';
+  socialAccounts.forEach(acc => {
+    const key     = `${acc.username}::${acc.platform}`;
+    const checked = (selectedAccounts || []).some(a => a.username === acc.username && a.platform === acc.platform);
+    const label   = document.createElement('label');
+    label.className = 'account-check';
+    label.innerHTML = `
+      <input type="checkbox" value="${escHtml(key)}" ${checked ? 'checked' : ''}>
+      ${acc.img ? `<img src="${escHtml(acc.img)}" alt="">` : '<div style="width:32px;height:32px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center">${PLATFORM_ICONS[acc.platform]||"📱"}</div>'}
+      <div class="acc-info">
+        <span class="acc-name">${PLATFORM_ICONS[acc.platform]||'📱'} ${escHtml(acc.display_name)}</span>
+        <span class="acc-sub">${escHtml(acc.handle)} · via @${escHtml(acc.username)}</span>
+      </div>`;
+    el.appendChild(label);
+  });
+}
+
+async function openCampaignForm(campaignId) {
+  if (!socialAccounts.length) await loadSocialAccounts();
+  const form = document.getElementById('campaign-form');
+  form.style.display = 'block';
+
+  if (!campaignId) {
+    document.getElementById('campaign-form-title').textContent = 'New Campaign';
+    document.getElementById('campaign-edit-id').value = '';
+    document.getElementById('campaign-name').value = '';
+    document.getElementById('campaign-keyword').value = '';
+    document.getElementById('campaign-interval').value = '24';
+    document.getElementById('campaign-max-videos').value = '5';
+    document.getElementById('campaign-caption').value = '';
+    renderAccountCheckboxes([]);
+  } else {
+    // Load existing campaign data
+    const res    = await api('/api/campaigns');
+    const data   = await res.json();
+    const obj    = JSON.parse(atob(data.content.replace(/\n/g, '')));
+    campaignsSha = data.sha;
+    const c      = (obj.campaigns || []).find(x => x.id === campaignId);
+    if (!c) return;
+    document.getElementById('campaign-form-title').textContent = 'Edit Campaign';
+    document.getElementById('campaign-edit-id').value = c.id;
+    document.getElementById('campaign-name').value = c.name;
+    document.getElementById('campaign-keyword').value = c.keyword;
+    document.getElementById('campaign-interval').value = String(c.interval_hours || 24);
+    document.getElementById('campaign-max-videos').value = String(c.max_videos || 5);
+    document.getElementById('campaign-caption').value = c.caption || '';
+    renderAccountCheckboxes(c.accounts || []);
+  }
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeCampaignForm() {
+  document.getElementById('campaign-form').style.display = 'none';
+}
+
+function getCheckedAccounts() {
+  return Array.from(document.querySelectorAll('#campaign-accounts-list input[type=checkbox]:checked')).map(cb => {
+    const [username, platform] = cb.value.split('::');
+    const acc = socialAccounts.find(a => a.username === username && a.platform === platform);
+    return { username, platform, display_name: acc ? acc.display_name : username, handle: acc ? acc.handle : '' };
+  });
+}
+
+async function saveCampaign() {
+  const name     = document.getElementById('campaign-name').value.trim();
+  const keyword  = document.getElementById('campaign-keyword').value.trim();
+  const interval = parseInt(document.getElementById('campaign-interval').value) || 24;
+  const maxV     = parseInt(document.getElementById('campaign-max-videos').value) || 5;
+  const caption  = document.getElementById('campaign-caption').value.trim();
+  const accounts = getCheckedAccounts();
+  const editId   = document.getElementById('campaign-edit-id').value;
+
+  if (!name)    { toast('Enter a campaign name', 'error'); return; }
+  if (!keyword) { toast('Enter a keyword', 'error'); return; }
+  if (!accounts.length) { toast('Select at least one account', 'error'); return; }
+
+  try {
+    // Load current campaigns
+    const res  = await api('/api/campaigns');
+    const data = await res.json();
+    const obj  = JSON.parse(atob(data.content.replace(/\n/g, '')));
+    const campaigns = obj.campaigns || [];
+    const sha  = data.sha;
+
+    if (editId) {
+      const idx = campaigns.findIndex(c => c.id === editId);
+      if (idx >= 0) Object.assign(campaigns[idx], { name, keyword, interval_hours: interval, max_videos: maxV, caption, accounts });
+    } else {
+      campaigns.push({
+        id: 'c' + Date.now(),
+        name, keyword, interval_hours: interval, max_videos: maxV, caption, accounts,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        last_run_at: null,
+        next_run_at: new Date().toISOString(),  // run on next check
+        last_result: null
+      });
+    }
+
+    const content = btoa(JSON.stringify({ campaigns }, null, 2));
+    const putRes  = await api('/api/campaigns', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: editId ? 'campaign: update' : 'campaign: create', content, sha })
+    });
+    if (!putRes.ok) throw new Error('HTTP ' + putRes.status);
+
+    toast(editId ? 'Campaign updated ✓' : 'Campaign created ✓', 'success');
+    closeCampaignForm();
+    await loadCampaigns();
+  } catch(e) { toast('Save failed: ' + e.message, 'error'); }
+}
+
+async function toggleCampaignStatus(id) {
+  try {
+    const res  = await api('/api/campaigns');
+    const data = await res.json();
+    const obj  = JSON.parse(atob(data.content.replace(/\n/g, '')));
+    const c    = (obj.campaigns || []).find(x => x.id === id);
+    if (!c) return;
+    c.status = c.status === 'active' ? 'paused' : 'active';
+    if (c.status === 'active') c.next_run_at = new Date().toISOString();
+    const content = btoa(JSON.stringify(obj, null, 2));
+    await api('/api/campaigns', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'campaign: toggle status', content, sha: data.sha }) });
+    toast(`Campaign ${c.status === 'active' ? 'resumed' : 'paused'} ✓`, 'success');
+    await loadCampaigns();
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+async function deleteCampaign(id) {
+  if (!confirm('Delete this campaign?')) return;
+  try {
+    const res  = await api('/api/campaigns');
+    const data = await res.json();
+    const obj  = JSON.parse(atob(data.content.replace(/\n/g, '')));
+    obj.campaigns = (obj.campaigns || []).filter(c => c.id !== id);
+    const content = btoa(JSON.stringify(obj, null, 2));
+    await api('/api/campaigns', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'campaign: delete', content, sha: data.sha }) });
+    toast('Campaign deleted', 'success');
+    await loadCampaigns();
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+window.addEventListener('load', () => { loadConfig(); loadProductImage(); loadCampaigns(); });
 </script>
 </body>
 </html>

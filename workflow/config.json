@@ -16,6 +16,8 @@
     "resolution": "720p",
     "aspect_ratio": "9:16"
   },
+  "_section_social": "=== SOCIAL POSTING ===",
+  "uploadpost_api_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IndlbG92ZWFpOTk2QGdtYWlsLmNvbSIsImV4cCI6NDkzMDk1NDYxOCwianRpIjoiNjdjMjE0ZmYtMmVhMi00ODUwLTk4ZWUtYmMxYjgxMzQ4NTMzIn0.OpppXOq0ErZL4EMnVKC3OycXi4ZUvXRbEPc1zoOmejU",
   "_section_polling": "=== POLLING ===",
   "poll_interval_seconds": 30
 }

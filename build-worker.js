@@ -31,6 +31,7 @@ function json(data, status = 200) {
 
 export default {
   async fetch(request, env) {
+    try {
     const url = new URL(request.url);
     const pat = env.GITHUB_PAT;
 
@@ -171,7 +172,48 @@ export default {
       return json({ ready: true, videos: results.videos, keyword: results.keyword });
     }
 
+    // GET /api/campaigns — fetch campaigns.json from GitHub
+    if (url.pathname === '/api/campaigns' && request.method === 'GET') {
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/campaigns.json?t=\${Date.now()}\`,
+        { headers: ghHeaders(pat) }
+      );
+      const data = await res.json();
+      return json(data, res.status);
+    }
+
+    // PUT /api/campaigns — save campaigns.json to GitHub
+    if (url.pathname === '/api/campaigns' && request.method === 'PUT') {
+      const body = await request.json();
+      const res = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/campaigns.json\`,
+        { method: 'PUT', headers: ghHeaders(pat), body: JSON.stringify(body) }
+      );
+      const data = await res.json();
+      return json(data, res.status);
+    }
+
+    // GET /api/social-accounts — proxy to upload-post, get connected accounts
+    if (url.pathname === '/api/social-accounts' && request.method === 'GET') {
+      // First fetch config to get uploadpost_api_key
+      const cfgRes = await fetch(
+        \`https://api.github.com/repos/\${OWNER}/\${REPO}/contents/workflow/config.json\`,
+        { headers: ghHeaders(pat) }
+      );
+      const cfgData = await cfgRes.json();
+      const cfg = JSON.parse(atob(cfgData.content.replace(/\\n/g, '')));
+      const upKey = cfg.uploadpost_api_key || '';
+      const res = await fetch('https://api.upload-post.com/api/uploadposts/users', {
+        headers: { 'Authorization': \`Apikey \${upKey}\` }
+      });
+      const data = await res.json();
+      return json(data, res.status);
+    }
+
     return new Response('Not found', { status: 404 });
+    } catch(err) {
+      return json({ error: err.message || 'Internal error' }, 500);
+    }
   }
 };
 `;
