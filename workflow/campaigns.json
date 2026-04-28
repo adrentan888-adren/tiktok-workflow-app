@@ -15,12 +15,12 @@
       ],
       "status": "active",
       "created_at": "2026-04-28T07:15:59.993Z",
-      "last_run_at": "2026-04-28T07:31:26.921Z",
-      "next_run_at": "2026-04-28T07:50:10.945Z",
+      "last_run_at": "2026-04-28T07:50:48.864Z",
+      "next_run_at": "2026-04-28T13:50:48.864Z",
       "last_result": {
         "success": false,
-        "error": "campaign is not defined",
-        "failed_at": "2026-04-28T07:31:26.921Z"
+        "error": "Video generation failed: Server exception, please try again later",
+        "failed_at": "2026-04-28T07:50:48.864Z"
       },
       "has_product_photo": true
     }
