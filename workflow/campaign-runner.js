@@ -46,9 +46,9 @@ function extractFrames(videoBuffer) {
 }
 
 // ── Claude analysis ───────────────────────────────────────────────────────────
-async function analyzeVideo(videoBuffer) {
+async function analyzeVideo(videoBuffer, campaign) {
     const model = config.analysis_model || 'claude-sonnet-4-6';
-    const prompt = config.analysis_prompt || 'Analyze this video and return a JSON array of 4 timestamped segments. Each must have: timestamp, visual_action, edit_instruction. Return only valid JSON.';
+    let prompt = config.analysis_prompt || 'Analyze this video and return a JSON array of 4 timestamped segments. Each must have: timestamp, visual_action, edit_instruction. Return only valid JSON.';
     log(`  Analyzing with ${model}...`);
 
     const frames = extractFrames(videoBuffer);
@@ -201,7 +201,7 @@ async function runCampaign(campaign) {
 
     // Step 4: AI Analysis
     log('Step 4 — AI analysis...');
-    const prompt = await analyzeVideo(videoBuffer);
+    const prompt = await analyzeVideo(videoBuffer, campaign);
     log(`  Prompt length: ${prompt.length} chars`);
 
     // Step 5: Generate video
