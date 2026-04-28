@@ -123,7 +123,7 @@ async function generateVideo(prompt) {
 }
 
 // ── Post to social media ──────────────────────────────────────────────────────
-async function postToSocialMedia(videoUrl, campaign) {
+async function postToSocialMedia(videoUrl, campaign, videoCaption) {
     const apiKey = config.uploadpost_api_key;
     if (!apiKey) throw new Error('uploadpost_api_key not set in config.json');
 
@@ -137,7 +137,7 @@ async function postToSocialMedia(videoUrl, campaign) {
     const results = [];
     for (const [username, platforms] of Object.entries(grouped)) {
         log(`  Posting to ${platforms.join(', ')} via profile "${username}"...`);
-        const caption = campaign.caption || `#${(campaign.keyword || '').replace(/\s+/g, '')} #viral #trending #ai`;
+        const caption = videoCaption || campaign.caption || `#${(campaign.keyword || '').replace(/\s+/g, '')} #viral #trending #ai`;
         const form = new FormData();
         form.append('user', username);
         platforms.forEach(p => form.append('platform[]', p));
@@ -170,7 +170,8 @@ async function runCampaign(campaign) {
 
     // Pick video with highest play count
     const video = rawVideos.sort((a, b) => (b.play_count || 0) - (a.play_count || 0))[0];
-    log(`  Selected: @${video.author && video.author.unique_id} — ${(video.title || '').substring(0, 60)}`);
+    const videoCaption = (video.title || video.desc || '').trim();
+    log(`  Selected: @${video.author && video.author.unique_id} — ${videoCaption.substring(0, 60)}`);
 
     // Step 2: Get HD download URL
     log('Step 2 — Getting HD URL...');
@@ -202,7 +203,7 @@ async function runCampaign(campaign) {
 
     // Step 6: Post to social media
     log('Step 6 — Posting to social media...');
-    const postResults = await postToSocialMedia(videoUrl, campaign);
+    const postResults = await postToSocialMedia(videoUrl, campaign, videoCaption);
 
     return { videoUrl, postResults };
 }
