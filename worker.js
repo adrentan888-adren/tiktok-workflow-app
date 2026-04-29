@@ -1779,11 +1779,16 @@ export default {
     const jobLogsMatch = url.pathname.match(/^\/api\/job-logs\/(\d+)$/);
     if (jobLogsMatch && request.method === 'GET') {
       const jobId = jobLogsMatch[1];
-      const res = await fetch(
+      // Step 1: get redirect URL from GitHub (do NOT follow — auth header must not go to Azure)
+      const ghRes = await fetch(
         `https://api.github.com/repos/${OWNER}/${REPO}/actions/jobs/${jobId}/logs`,
-        { headers: ghHeaders(pat), redirect: 'follow' }
+        { headers: ghHeaders(pat), redirect: 'manual' }
       );
-      const text = await res.text();
+      const logUrl = ghRes.headers.get('location');
+      if (!logUrl) return new Response('No log URL returned by GitHub', { status: 502 });
+      // Step 2: fetch the Azure Blob URL without auth headers
+      const logRes = await fetch(logUrl);
+      const text = await logRes.text();
       return new Response(text, { headers: { 'Content-Type': 'text/plain' } });
     }
 
