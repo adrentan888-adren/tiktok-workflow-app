@@ -1650,11 +1650,19 @@ async function loadJobLogs(jobId, outputId) {
   try {
     const res  = await api('/api/job-logs/' + jobId);
     const text = await res.text();
-    // Strip ANSI codes and GitHub timestamp prefixes, keep meaningful lines
-    const lines = text.split('\n')
-      .map(l => l.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+/, '').replace(/\x1b\[[0-9;]*m/g, ''))
-      .filter(l => l.trim());
-    el.innerHTML = `<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;line-height:1.6;overflow-x:auto;white-space:pre-wrap;max-height:500px;overflow-y:auto">${escHtml(lines.join('\n'))}</pre>`;
+    const allLines = text.split('\n')
+      .map(l => l.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+/, '').replace(/\x1b\[[0-9;]*m/g, '').trimEnd());
+    // Show only campaign runner output: find start marker, skip GitHub Actions boilerplate
+    const startIdx = allLines.findIndex(l => l.includes('Campaign Runner started') || l.includes('CAMPAIGN START') || l.includes('No campaigns were due'));
+    const lines = (startIdx >= 0 ? allLines.slice(startIdx) : allLines)
+      .filter(l => l.trim() && !l.startsWith('Post job') && !l.startsWith('[command]') && !l.startsWith('Temporarily') && !l.startsWith('Adding repo') && !l.startsWith('Cleaning up') && !l.startsWith('##[warning]'));
+    const output = lines.join('\n') || '(no campaign runner output found)';
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--text-muted)">${lines.length} lines</span>
+        <button onclick="navigator.clipboard.writeText(this.closest('div').nextElementSibling.textContent)" style="font-size:11px;padding:2px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer">📋 Copy</button>
+      </div>
+      <pre id="log-pre-${jobId}" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;line-height:1.6;overflow-x:auto;white-space:pre-wrap;max-height:500px;overflow-y:auto">${escHtml(output)}</pre>`;
   } catch(e) {
     el.innerHTML = `<p style="color:var(--error);font-size:12px">Failed: ${escHtml(e.message)}</p>`;
   }
