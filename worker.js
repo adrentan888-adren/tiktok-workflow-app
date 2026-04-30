@@ -1183,7 +1183,7 @@ function switchTab(tab) {
 
 // ── Campaign model / pricing ───────────────────────────────────────────────────
 const CAMPAIGN_MODELS = {
-  'grok-imagine/text-to-video': { label: 'Grok Aurora',  maxDuration: 10, pricePerSec: 0.05, flatPrice: null },
+  'grok-imagine/text-to-video': { label: 'Grok Aurora',  maxDuration: 30, pricePerSec: 0.05, flatPrice: null },
   'bytedance/seedance-2':       { label: 'Seedance 2.0', maxDuration: 15, pricePerSec: 0.03, flatPrice: null },
 };
 

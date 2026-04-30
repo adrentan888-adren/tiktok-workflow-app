@@ -102,7 +102,7 @@ async function generateVideo(prompt, modelOverrides = {}) {
     const RES = isGrok ? '720p' : '1080p';
     let input;
     if (isGrok) {
-        input = { prompt, duration: String(Math.min(duration, 10)), resolution: RES, aspect_ratio: ASPECT, mode: 'normal' };
+        input = { prompt, duration: String(Math.min(duration, 30)), resolution: RES, aspect_ratio: ASPECT, mode: 'normal' };
     } else if (isSeedance) {
         input = { prompt, duration: Math.min(duration, 15), resolution: RES, aspect_ratio: ASPECT, generate_audio: true };
     } else if (isSora) {
