@@ -17,27 +17,13 @@
       "video_duration": 30,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-04-30T15:31:30.555Z",
-      "next_run_at": "2026-04-30T21:31:30.555Z",
+      "last_run_at": "2026-04-30T22:12:59.988Z",
+      "next_run_at": "2026-04-30T22:22:59.988Z",
       "last_result": {
-        "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/1f47a61a-57f9-4d89-a0ae-f9bfe9845d1d/generated/0da3a990-8100-4a66-9a90-a233c554a589/generated_video.mp4",
-        "posted_at": "2026-04-30T15:31:30.555Z",
-        "posts": [
-          {
-            "username": "Kids",
-            "platforms": [
-              "tiktok"
-            ],
-            "response": {
-              "success": true,
-              "message": "Upload queued successfully in the durable worker.",
-              "request_id": "dfba9167044948738809c0a34f85f3a0",
-              "total_platforms": 1,
-              "job_id": "f1593e2e4f404fe1bcfa5840fed46d20"
-            }
-          }
-        ]
+        "success": false,
+        "error": "Video generation failed: Server exception, please try again later",
+        "failed_at": "2026-04-30T22:12:59.988Z",
+        "retry_in": "10 min"
       },
       "has_product_photo": true
     }
