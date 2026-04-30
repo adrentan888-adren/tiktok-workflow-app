@@ -228,7 +228,7 @@ async function runCampaign(campaign) {
     const rawVideos = (searchData.data && searchData.data.videos) || [];
     if (rawVideos.length === 0) throw new Error('No videos found for keyword: ' + campaign.keyword);
     // Filter to videos with duration 25–35s (matching target generation length); fall back to all if none match
-    const DUR_MIN = 25, DUR_MAX = 35;
+    const DUR_MIN = 15, DUR_MAX = 60;
     const filteredVideos = rawVideos.filter(v => { const d = v.duration || 0; return d >= DUR_MIN && d <= DUR_MAX; });
     log(`  duration_filter: ${DUR_MIN}–${DUR_MAX}s → ${filteredVideos.length}/${rawVideos.length} matched`);
     const pool = filteredVideos.length > 0 ? filteredVideos : rawVideos;
