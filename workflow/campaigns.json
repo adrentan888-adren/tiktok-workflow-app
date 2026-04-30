@@ -17,13 +17,27 @@
       "video_duration": 15,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-04-30T07:41:12.748Z",
-      "next_run_at": "2026-04-30T07:51:12.748Z",
+      "last_run_at": "2026-04-30T13:10:45.439Z",
+      "next_run_at": "2026-04-30T19:10:45.439Z",
       "last_result": {
-        "success": false,
-        "error": "Claude returned empty: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"The server is currently being maintained, please try again later~\"}}",
-        "failed_at": "2026-04-30T07:41:12.748Z",
-        "retry_in": "10 min"
+        "success": true,
+        "videoUrl": "https://tempfile.aiquickdraw.com/seedance/1777555175766-7x72q4gd8n5.mp4",
+        "posted_at": "2026-04-30T13:10:45.439Z",
+        "posts": [
+          {
+            "username": "Kids",
+            "platforms": [
+              "tiktok"
+            ],
+            "response": {
+              "success": true,
+              "message": "Upload queued successfully in the durable worker.",
+              "request_id": "89fca259e1c849049d00f256fcbdbd6e",
+              "total_platforms": 1,
+              "job_id": "65b009c75ad649f092aa034f90174400"
+            }
+          }
+        ]
       },
       "has_product_photo": true
     }
