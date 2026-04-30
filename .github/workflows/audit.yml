@@ -1,0 +1,22 @@
+name: Campaign Audit
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'   # every 20 minutes
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Audit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node workflow/audit.js
