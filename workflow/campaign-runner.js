@@ -219,7 +219,7 @@ async function runCampaign(campaign) {
 
     // ── Step 1: Search TikTok ────────────────────────────────────────────────
     log(`\n[STEP 1] TikTok Search`);
-    const maxVideos = campaign.max_videos || 5;
+    const maxVideos = Math.max(campaign.max_videos || 5, 20); // fetch at least 20 to have good duration filter pool
     const searchRes = await fetch(`https://www.tikwm.com/api/feed/search?keywords=${encodeURIComponent(campaign.keyword)}&count=${maxVideos}&cursor=0&hd=1`);
     const searchData = await searchRes.json();
     log(`  tikwm_code    : ${searchData.code}`);
@@ -227,10 +227,17 @@ async function runCampaign(campaign) {
     if (searchData.code !== 0) throw new Error(`tikwm search error: ${searchData.msg}`);
     const rawVideos = (searchData.data && searchData.data.videos) || [];
     if (rawVideos.length === 0) throw new Error('No videos found for keyword: ' + campaign.keyword);
-    const video = rawVideos.sort((a, b) => (b.play_count || 0) - (a.play_count || 0))[0];
+    // Filter to videos with duration 25–35s (matching target generation length); fall back to all if none match
+    const DUR_MIN = 25, DUR_MAX = 35;
+    const filteredVideos = rawVideos.filter(v => { const d = v.duration || 0; return d >= DUR_MIN && d <= DUR_MAX; });
+    log(`  duration_filter: ${DUR_MIN}–${DUR_MAX}s → ${filteredVideos.length}/${rawVideos.length} matched`);
+    const pool = filteredVideos.length > 0 ? filteredVideos : rawVideos;
+    if (filteredVideos.length === 0) log(`  WARNING: no videos in ${DUR_MIN}–${DUR_MAX}s range, using all results`);
+    const video = pool.sort((a, b) => (b.play_count || 0) - (a.play_count || 0))[0];
     const videoCaption = (video.title || video.desc || '').trim();
     log(`  selected_user : @${video.author && video.author.unique_id}`);
     log(`  play_count    : ${video.play_count}`);
+    log(`  video_duration: ${video.duration || 'unknown'}s`);
     log(`  caption       : ${videoCaption.substring(0, 100)}`);
 
     // ── Step 2: HD URL ───────────────────────────────────────────────────────
