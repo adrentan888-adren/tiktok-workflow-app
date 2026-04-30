@@ -318,8 +318,12 @@ async function main() {
         } catch (err) {
             log(`Campaign "${campaign.name}" failed: ${err.message}`);
             campaign.last_run_at = now.toISOString();
-            campaign.next_run_at = new Date(now.getTime() + (campaign.interval_hours || 24) * 3600000).toISOString();
-            campaign.last_result = { success: false, error: err.message, failed_at: now.toISOString() };
+            // Transient errors (maintenance, network, server down) → retry in 10 min
+            const isTransient = /maintenance|please try again|server exception|network error|overloaded/i.test(err.message);
+            const retryMs = isTransient ? 10 * 60 * 1000 : (campaign.interval_hours || 24) * 3600000;
+            campaign.next_run_at = new Date(now.getTime() + retryMs).toISOString();
+            campaign.last_result = { success: false, error: err.message, failed_at: now.toISOString(), retry_in: isTransient ? '10 min' : `${campaign.interval_hours || 24}h` };
+            log(`  Next retry: ${campaign.next_run_at} (${isTransient ? '10 min — transient error' : 'full interval'})`);
         }
         anyUpdated = true;
     }
