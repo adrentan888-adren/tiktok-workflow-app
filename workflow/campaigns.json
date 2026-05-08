@@ -17,13 +17,27 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-05-08T00:07:33.695Z",
-      "next_run_at": "2026-05-08T00:17:33.695Z",
+      "last_run_at": "2026-05-08T07:03:35.444Z",
+      "next_run_at": "2026-05-08T13:03:35.444Z",
       "last_result": {
-        "success": false,
-        "error": "Video generation failed: Internal Error, Please try again later.",
-        "failed_at": "2026-05-08T00:07:33.695Z",
-        "retry_in": "10 min"
+        "success": true,
+        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/7a5d703e-c3c9-4afa-8425-f2d61df87fa8/generated/353f4438-0acb-4649-9162-ca070721a19c/generated_video.mp4",
+        "posted_at": "2026-05-08T07:03:35.444Z",
+        "posts": [
+          {
+            "username": "Kids",
+            "platforms": [
+              "tiktok"
+            ],
+            "response": {
+              "success": true,
+              "message": "Upload queued successfully in the durable worker.",
+              "request_id": "f65370fc10ad4b1dab1a2ae99eebd970",
+              "total_platforms": 1,
+              "job_id": "74ea17a8e46c4005bb101c1bb8151e33"
+            }
+          }
+        ]
       },
       "has_product_photo": true
     }
