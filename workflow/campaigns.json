@@ -17,12 +17,12 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-05-14T09:19:03.814Z",
-      "next_run_at": "2026-05-14T15:19:03.814Z",
+      "last_run_at": "2026-05-14T17:16:19.149Z",
+      "next_run_at": "2026-05-14T23:16:19.149Z",
       "last_result": {
         "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/620c3cef-5116-40a2-a89e-48dc3fb2c44e/generated/d3ec447f-cd2d-41a9-80ac-6bd74d416b61/generated_video.mp4",
-        "posted_at": "2026-05-14T09:19:03.814Z",
+        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/da710cb9-a55f-4043-b911-91c52679fe6a/generated/4ab413f3-2903-42ff-94cc-1c7bae15d823/generated_video.mp4",
+        "posted_at": "2026-05-14T17:16:19.149Z",
         "posts": [
           {
             "username": "Kids",
@@ -32,9 +32,9 @@
             "response": {
               "success": true,
               "message": "Upload queued successfully in the durable worker.",
-              "request_id": "17ab0b40ee154c9080b807b381ec569b",
+              "request_id": "0409f95f38a14222817fc4c9a0067b53",
               "total_platforms": 1,
-              "job_id": "01d0e9e1778e48169af157db2ffd2f00"
+              "job_id": "71ff7fc5c20c40f9bd17810def85d257"
             }
           }
         ]
