@@ -17,13 +17,13 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-05-15T16:50:19.144Z",
-      "next_run_at": "2026-05-15T17:00:19.144Z",
+      "last_run_at": "2026-05-15T18:22:31.468Z",
+      "next_run_at": "2026-05-16T00:22:31.468Z",
       "last_result": {
         "success": false,
-        "error": "Claude returned empty: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"The system load is too high. Please try again later.\"}}",
-        "failed_at": "2026-05-15T16:50:19.144Z",
-        "retry_in": "10 min"
+        "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+        "failed_at": "2026-05-15T18:22:31.468Z",
+        "retry_in": "6h"
       },
       "has_product_photo": true
     }
