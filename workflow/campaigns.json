@@ -17,27 +17,13 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-05-21T07:50:08.505Z",
-      "next_run_at": "2026-05-21T13:50:08.505Z",
+      "last_run_at": "2026-05-21T15:21:05.617Z",
+      "next_run_at": "2026-05-21T21:21:05.617Z",
       "last_result": {
-        "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/0b69743c-6300-4469-90ce-dcfd7fc76cf1/generated/7464a84d-a638-452c-8b9a-d51a4c76ba13/generated_video.mp4",
-        "posted_at": "2026-05-21T07:50:08.505Z",
-        "posts": [
-          {
-            "username": "Kids",
-            "platforms": [
-              "tiktok"
-            ],
-            "response": {
-              "success": true,
-              "message": "Upload queued successfully in the durable worker.",
-              "request_id": "5980b7281e144ff39c94d3d477f8526f",
-              "total_platforms": 1,
-              "job_id": "5bef20433c8f42b68ccdecaeb9fa60d0"
-            }
-          }
-        ]
+        "success": false,
+        "error": "No taskId: {\"code\":402,\"msg\":\"Credits insufficient : Your current balance isn’t enough to run this request. Please top up to continue.\",\"data\":null}",
+        "failed_at": "2026-05-21T15:21:05.617Z",
+        "retry_in": "6h"
       },
       "has_product_photo": true
     }
