@@ -17,13 +17,27 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-05-23T11:09:32.054Z",
-      "next_run_at": "2026-05-23T17:09:32.054Z",
+      "last_run_at": "2026-05-23T17:59:41.313Z",
+      "next_run_at": "2026-05-23T23:59:41.313Z",
       "last_result": {
-        "success": false,
-        "error": "Claude returned empty: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"This organization has been disabled.\"}}",
-        "failed_at": "2026-05-23T11:09:32.054Z",
-        "retry_in": "6h"
+        "success": true,
+        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/06e418bb-25b2-445c-aabe-60e541390797/generated/8e616d7c-c5a6-4f85-ab01-580c9958ebbd/generated_video.mp4",
+        "posted_at": "2026-05-23T17:59:41.313Z",
+        "posts": [
+          {
+            "username": "Kids",
+            "platforms": [
+              "tiktok"
+            ],
+            "response": {
+              "success": true,
+              "message": "Upload queued successfully in the durable worker.",
+              "request_id": "2fda0cd2e70b40cb95c0d947af17e9f5",
+              "total_platforms": 1,
+              "job_id": "e5d7ea5ab164401b856ca964f2e86d02"
+            }
+          }
+        ]
       },
       "has_product_photo": true
     }
