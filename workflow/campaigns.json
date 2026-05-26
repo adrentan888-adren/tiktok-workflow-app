@@ -17,27 +17,13 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-05-26T16:41:52.671Z",
-      "next_run_at": "2026-05-26T22:41:52.671Z",
+      "last_run_at": "2026-05-26T23:08:53.769Z",
+      "next_run_at": "2026-05-27T05:08:53.769Z",
       "last_result": {
-        "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/a7759f64-ad44-4c5c-9731-0e1d4970cbce/generated/994090a3-7a83-45dd-b27d-19154c8bcadc/generated_video.mp4",
-        "posted_at": "2026-05-26T16:41:52.671Z",
-        "posts": [
-          {
-            "username": "Kids",
-            "platforms": [
-              "tiktok"
-            ],
-            "response": {
-              "success": true,
-              "message": "Upload queued successfully in the durable worker.",
-              "request_id": "f79b51c26dcf4dfcb89407d9ee0c19ca",
-              "total_platforms": 1,
-              "job_id": "7933e43b7f2241c09390cd50d930a3c1"
-            }
-          }
-        ]
+        "success": false,
+        "error": "Unexpected token '<', \"<!doctype \"... is not valid JSON",
+        "failed_at": "2026-05-26T23:08:53.769Z",
+        "retry_in": "6h"
       },
       "has_product_photo": true
     }
