@@ -17,12 +17,12 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-05-28T23:14:59.650Z",
-      "next_run_at": "2026-05-29T05:14:59.650Z",
+      "last_run_at": "2026-06-09T20:56:01.466Z",
+      "next_run_at": "2026-06-10T02:56:01.466Z",
       "last_result": {
         "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/ef3f369b-80e5-43db-889a-8151533229a3/generated/189971ca-a008-4c98-ac20-c691d18d069b/generated_video.mp4",
-        "posted_at": "2026-05-28T23:14:59.650Z",
+        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/65bcbd1a-b0ac-4fc5-9bc1-d58fe7996371/generated/d2da1f18-f98e-449c-a0fb-0d2a2a6e44c4/generated_video.mp4",
+        "posted_at": "2026-06-09T20:56:01.466Z",
         "posts": [
           {
             "username": "Kids",
@@ -30,11 +30,8 @@
               "tiktok"
             ],
             "response": {
-              "success": true,
-              "message": "Upload queued successfully in the durable worker.",
-              "request_id": "8e9a2161c2894cc78a514c1f01c1dac9",
-              "total_platforms": 1,
-              "job_id": "4ba751492c864a27aa101f6a02c60334"
+              "success": false,
+              "message": "Invalid API key (user not found)"
             }
           }
         ]
