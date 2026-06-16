@@ -17,12 +17,12 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-06-16T03:55:26.205Z",
-      "next_run_at": "2026-06-16T09:55:26.205Z",
+      "last_run_at": "2026-06-16T15:08:25.135Z",
+      "next_run_at": "2026-06-16T21:08:25.135Z",
       "last_result": {
         "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/15135ea7-78ad-4f99-82fb-a3a89488522b/generated/a5001679-65e2-4b71-9037-8b2f350c81c8/generated_video.mp4",
-        "posted_at": "2026-06-16T03:55:26.205Z",
+        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/f31e07c9-2ec0-4b7a-9d40-86746c8f5b19/generated/692323d5-15b4-44d5-b721-60868c0ee5d4/generated_video.mp4",
+        "posted_at": "2026-06-16T15:08:25.135Z",
         "posts": [
           {
             "username": "Kids",
