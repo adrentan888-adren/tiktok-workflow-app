@@ -17,24 +17,13 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-06-17T18:14:03.824Z",
-      "next_run_at": "2026-06-18T00:14:03.824Z",
+      "last_run_at": "2026-06-18T12:24:07.185Z",
+      "next_run_at": "2026-06-18T18:24:07.185Z",
       "last_result": {
-        "success": true,
-        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/67d6afa8-0804-4197-bc4c-d33520a4711a/generated/7327631e-8ad0-4130-a432-269647ce93b3/generated_video.mp4",
-        "posted_at": "2026-06-17T18:14:03.824Z",
-        "posts": [
-          {
-            "username": "Kids",
-            "platforms": [
-              "tiktok"
-            ],
-            "response": {
-              "success": false,
-              "message": "Invalid API key (user not found)"
-            }
-          }
-        ]
+        "success": false,
+        "error": "Claude returned empty: {\"code\":422,\"msg\":\"The page does not exist\",\"data\":null}",
+        "failed_at": "2026-06-18T12:24:07.185Z",
+        "retry_in": "6h"
       },
       "has_product_photo": true
     }
