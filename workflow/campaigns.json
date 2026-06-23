@@ -17,13 +17,24 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-06-22T20:45:18.535Z",
-      "next_run_at": "2026-06-23T02:45:18.535Z",
+      "last_run_at": "2026-06-23T04:58:49.383Z",
+      "next_run_at": "2026-06-23T10:58:49.383Z",
       "last_result": {
-        "success": false,
-        "error": "Video generation failed: Internal Error",
-        "failed_at": "2026-06-22T20:45:18.535Z",
-        "retry_in": "6h"
+        "success": true,
+        "videoUrl": "https://tempfile.aiquickdraw.com/g/users/60532c84-0ea3-48b5-8994-b8006ef4e5ce/generated/e1d2c436-dd10-41ba-9cf1-36dbcadd3943/generated_video.mp4",
+        "posted_at": "2026-06-23T04:58:49.383Z",
+        "posts": [
+          {
+            "username": "Kids",
+            "platforms": [
+              "tiktok"
+            ],
+            "response": {
+              "success": false,
+              "message": "Invalid API key (user not found)"
+            }
+          }
+        ]
       },
       "has_product_photo": true
     }
