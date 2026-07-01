@@ -17,12 +17,12 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-07-01T12:03:19.723Z",
-      "next_run_at": "2026-07-01T18:03:19.723Z",
+      "last_run_at": "2026-07-01T19:51:29.019Z",
+      "next_run_at": "2026-07-02T01:51:29.019Z",
       "last_result": {
         "success": false,
         "error": "No taskId: {\"code\":402,\"msg\":\"Credits insufficient : Your current balance isn’t enough to run this request. Please top up to continue.\",\"data\":null}",
-        "failed_at": "2026-07-01T12:03:19.723Z",
+        "failed_at": "2026-07-01T19:51:29.019Z",
         "retry_in": "6h"
       },
       "has_product_photo": true
