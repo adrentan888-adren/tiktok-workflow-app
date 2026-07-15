@@ -17,12 +17,12 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-07-15T12:13:44.920Z",
-      "next_run_at": "2026-07-15T18:13:44.920Z",
+      "last_run_at": "2026-07-15T20:06:42.330Z",
+      "next_run_at": "2026-07-16T02:06:42.330Z",
       "last_result": {
         "success": false,
         "error": "Claude returned empty: {\"code\":401,\"msg\":\"The API key is not authorized to use this model.\",\"data\":null}",
-        "failed_at": "2026-07-15T12:13:44.920Z",
+        "failed_at": "2026-07-15T20:06:42.330Z",
         "retry_in": "6h"
       },
       "has_product_photo": true
