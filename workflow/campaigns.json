@@ -17,12 +17,12 @@
       "video_duration": 10,
       "status": "active",
       "created_at": "2026-04-28T08:50:23.415Z",
-      "last_run_at": "2026-08-31T03:38:11.819Z",
-      "next_run_at": "2026-08-31T09:38:11.819Z",
+      "last_run_at": "2026-08-31T10:31:38.039Z",
+      "next_run_at": "2026-08-31T16:31:38.039Z",
       "last_result": {
         "success": false,
         "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
-        "failed_at": "2026-08-31T03:38:11.819Z",
+        "failed_at": "2026-08-31T10:31:38.039Z",
         "retry_in": "6h"
       },
       "has_product_photo": true
